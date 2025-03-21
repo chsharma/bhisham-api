@@ -1,0 +1,25 @@
+package services
+
+import (
+	"bhisham-api/internal/app/repositories"
+)
+
+type DashboardService struct {
+	DashboardRepo *repositories.DashboardRepository
+}
+
+func (s *DashboardService) GetDashboardStats() (map[string]interface{}, error) {
+	return s.DashboardRepo.GetDashboardStats()
+}
+
+func (s *DashboardService) GetBhisham() (map[string]interface{}, error) {
+	return s.DashboardRepo.GetBhisham()
+}
+
+func (s *DashboardService) GetChildCube(BhishamID, MotherCubeID int) (map[string]interface{}, error) {
+	return s.DashboardRepo.GetChildCube(BhishamID, MotherCubeID)
+}
+
+func (s *DashboardService) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
+	return s.DashboardRepo.GetChildKits(BhishamID, MotherCubeID, CCNo)
+}
