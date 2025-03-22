@@ -3,6 +3,7 @@ package router
 import (
 	"bhisham-api/internal/app/handlers"
 	"bhisham-api/internal/app/middleware"
+	"fmt"
 	"net/http"
 )
 
@@ -22,7 +23,12 @@ func NewRouter(gbhishamHandler *handlers.BhishamHandler, userHandler *handlers.U
 
 func (r *Router) RegisterRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
-	url := "/v1/api" // Corrected variable declaration
+	url := "/v1/api" // API base path
+
+	// Corrected default handler
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Welcome To Api")
+	})
 
 	// User Routes
 	mux.Handle(url+"/user/login", http.HandlerFunc(r.UserHandler.AuthenticateUser))
