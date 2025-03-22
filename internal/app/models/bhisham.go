@@ -41,3 +41,43 @@ type GetKits struct {
 	MCNo       int    `json:"mc_no"`
 	CubeNumber string `json:"cc_no"`
 }
+
+type BhishamMappingData struct {
+	BhishamID      int
+	SerialNo       string
+	MCNo           int
+	CCNo           string
+	CCName         string
+	KitCode        string
+	KitName        string
+	NoOfKit        int
+	SKUCode        string
+	ItemName       string
+	BatchNoSrNo    string
+	MFD            string
+	EXP            string
+	ManufacturedBy string
+	TotalQty       int
+	CCEPC          string
+	MCEPC          string
+	MCName         string
+	NoOfItem       int
+	IsCube         int
+	CubeNumber     int
+}
+
+type GetBhishamID struct {
+	BhishamID int `json:"bhisham_id"`
+}
+
+type UpdateBhishamData struct {
+	BhishamID  int    `json:"bhisham_id"`
+	MCNo       int    `json:"mc_no"`
+	CubeNumber int    `json:"cube_number"`
+	KitName    string `json:"kit_name"`
+	BatchCode  string `json:"batch_code"`
+	MFD        string `json:"mfd"`
+	EXP        string `json:"exp"`
+	ID         int    `json:"id"`
+	UpdateType int    `json:"update_typeid"`
+}

@@ -5,6 +5,9 @@ import (
 	"bhisham-api/internal/app/models"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 )
 
 type BhishamRepository struct {
@@ -73,4 +76,328 @@ func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]in
 
 	// Success Response with Inserted ID
 	return helper.CreateDynamicResponse("Bhisham Created Successfully", true, map[string]interface{}{"id": newID}, 200, nil), nil
+}
+
+func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map[string]interface{}, error) {
+
+	var exists bool
+	err := r.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM bhisham_data WHERE id = $1)", BhishamID).Scan(&exists)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error checking existing Serial No", false, nil, 500, nil), err
+	}
+	if exists {
+		return helper.CreateDynamicResponse("Data already exists", false, nil, 500, nil), errors.New("duplicate serial_no")
+	}
+
+	query := `SELECT bhisham_id, serial_no, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, 
+	sku_code, item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, 
+	cc_epc, mc_epc, mc_name, no_of_item, is_cube, cube_number FROM bhisham_mapping WHERE bhisham_id=$1`
+
+	rows, err := r.DB.Query(query, BhishamID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error  executing query > "+err.Error(), false, nil, 200, nil), nil
+	}
+	defer rows.Close()
+
+	var mappings []models.BhishamMappingData
+	uniqueCCNos := make(map[string]bool)
+	uniqueCCKit := make(map[string]bool)
+	var Cubes []string
+
+	// Read all records
+	for rows.Next() {
+		var data models.BhishamMappingData
+		if err := rows.Scan(&data.BhishamID, &data.SerialNo, &data.MCNo, &data.CCNo, &data.CCName, &data.KitCode, &data.KitName, &data.NoOfKit,
+			&data.SKUCode, &data.ItemName, &data.BatchNoSrNo, &data.MFD, &data.EXP, &data.ManufacturedBy, &data.TotalQty,
+			&data.CCEPC, &data.MCEPC, &data.MCName, &data.NoOfItem, &data.IsCube, &data.CubeNumber); err != nil {
+
+			return helper.CreateDynamicResponse("Error  scanning row > "+err.Error(), false, nil, 200, nil), nil
+		}
+		mappings = append(mappings, data)
+
+		// Unique CCNo values
+		if _, exists := uniqueCCNos[data.CCNo]; !exists {
+			uniqueCCNos[data.CCNo] = true
+			Cubes = append(Cubes, data.CCNo)
+		}
+	}
+
+	insertQuery := `INSERT INTO bhisham_data 
+	(bhisham_id, mc_no, mc_name, mc_epc, cc_no, cc_name, cc_epc, kitcode, kit_no, kit_epc, kit_batch_no, 
+	kit_expiry, kit_qty, sku_code, sku_name, batch_no_sr_no, mfd, exp, manufactured_by, sku_qty, cube_number,kitname,no_of_kit) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`
+
+	// Use a transaction for batch insertion
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Error starting transaction > "+err.Error(), false, nil, 200, nil), nil
+	}
+	stmt, err := tx.Prepare(insertQuery)
+	if err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error preparing insert statement > "+err.Error(), false, nil, 200, nil), nil
+	}
+	defer stmt.Close()
+
+	for _, ccNo := range Cubes {
+		kitNo := 1 // Start Kit Numbering
+
+		for _, mapping := range mappings {
+			if mapping.CCNo == ccNo {
+				key := fmt.Sprintf("%s-%s", mapping.CCNo, mapping.KitName)
+				if _, exists := uniqueCCKit[key]; !exists {
+					uniqueCCKit[key] = true
+					KitItems := GetProductsByKit(mappings, mapping.KitName, mapping.CCNo)
+					minExpiry := FindMinExpiry(KitItems)
+
+					for k := 0; k < int(mapping.NoOfKit); k++ {
+						for _, item := range KitItems {
+							_, err := stmt.Exec(
+								item.BhishamID, item.MCNo, item.MCName, item.MCEPC,
+								item.CCNo, item.CCName, item.CCEPC, item.KitCode, kitNo, GenerateKitEPC(item.MCNo, item.CubeNumber, kitNo),
+								item.BatchNoSrNo, minExpiry, item.NoOfKit, item.SKUCode, item.ItemName,
+								item.BatchNoSrNo, item.MFD, item.EXP, item.ManufacturedBy, item.TotalQty, item.CubeNumber, item.KitName, item.NoOfKit,
+							)
+							if err != nil {
+								tx.Rollback()
+								return helper.CreateDynamicResponse("Error inserting data > "+err.Error(), false, nil, 200, nil), nil
+							}
+						}
+						kitNo++
+					}
+				}
+			}
+		}
+	}
+	var ID int
+	updateBhishamQuery := `UPDATE public.bhisham SET is_complete=1, complete_time=NOW(), complete_by=$1 WHERE id=$2 RETURNING id`
+
+	err = tx.QueryRow(updateBhishamQuery, UserID, BhishamID).Scan(&ID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error Creating Bhisham >"+err.Error(), false, nil, 400, nil), err
+	}
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return helper.CreateDynamicResponse("Error committing transaction > "+err.Error(), false, nil, 200, nil), nil
+	}
+
+	return helper.CreateDynamicResponse("Bhisham Created Successfully", true, nil, 200, nil), nil
+}
+
+func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	var updateBhishamQuery, updateBhishamMappingQuery string
+	var queryParams []interface{}
+	var ParamsMapping []interface{}
+
+	// Determine the update queries based on UpdateType
+	switch obj.UpdateType {
+	case 1:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo}
+
+	case 2:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
+
+	case 3:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE id=$4`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID}
+		ParamsMapping = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
+
+	default:
+		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
+	}
+
+	// Start a transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Transaction start error: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	// Execute bhisham_data update
+	if err := executeUpdateQuery(tx, updateBhishamQuery, queryParams); err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error updating bhisham_data: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Execute bhisham_mapping update (use correct params for type 3)
+	if obj.UpdateType == 3 {
+		if err := executeUpdateQuery(tx, updateBhishamMappingQuery, ParamsMapping); err != nil {
+			tx.Rollback()
+			return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+		}
+	} else {
+		if err := executeUpdateQuery(tx, updateBhishamMappingQuery, queryParams); err != nil {
+			tx.Rollback()
+			return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+		}
+	}
+
+	// Log the update in `update_bhisham_data` table
+	logQuery := `INSERT INTO public.update_bhisham_data 
+				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
+
+	if _, err := tx.Exec(logQuery, logParams...); err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error logging update: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return helper.CreateDynamicResponse("Transaction commit error: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	return helper.CreateDynamicResponse("Bhisham Updated Successfully", true, nil, 200, nil), nil
+}
+
+func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	var updateBhishamQuery string
+	var queryParams []interface{}
+
+	// Determine the update query based on UpdateType
+	switch obj.UpdateType {
+	case 1:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo}
+
+	case 2:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
+
+	case 3:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
+							  WHERE id=$4`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID}
+
+	default:
+		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
+	}
+
+	// Execute Update Query (Exec instead of QueryRow)
+	res, err := r.DB.Exec(updateBhishamQuery, queryParams...)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error updating Bhisham data: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Check if any rows were affected
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching update count: "+err.Error(), false, nil, 400, nil), err
+	}
+	if rowsAffected == 0 {
+		return helper.CreateDynamicResponse("No records updated", false, nil, 200, nil), nil
+	}
+
+	// Log update in `update_bhisham_data` table
+	logQuery := `INSERT INTO public.update_bhisham_data 
+				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
+
+	_, err = r.DB.Exec(logQuery, logParams...)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error logging update: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil
+}
+
+func FindMinExpiry(items []models.BhishamMappingData) string {
+	var minExpiry string
+	var minTime time.Time
+	hasValidExpiry := false
+
+	for _, item := range items {
+		exp := strings.TrimSpace(item.EXP) // Trim spaces
+
+		// Ignore empty or "NA" values
+		if exp == "" || strings.ToUpper(exp) == "NA" {
+			continue
+		}
+
+		// Parse expiry date
+		expTime, err := time.Parse("2006-01-02", exp) // Adjust format if needed
+		if err != nil {
+			continue
+		}
+
+		// Initialize minTime or update if new expiry is earlier
+		if !hasValidExpiry || expTime.Before(minTime) {
+			minTime = expTime
+			minExpiry = exp
+			hasValidExpiry = true
+		}
+	}
+
+	// If no valid expiry found, return "NA"
+	if !hasValidExpiry {
+		return "NA"
+	}
+	return minExpiry
+}
+
+func GenerateKitEPC(mcNo int, boxNumber int, packNo int) string {
+	return fmt.Sprintf("B"+"A0%dCA%d0%02d000000000000%02d", mcNo, mcNo, boxNumber, packNo)
+}
+
+func GetProductsByKit(mappings []models.BhishamMappingData, kitName string, ccNo string) []models.BhishamMappingData {
+	var result []models.BhishamMappingData
+	for _, item := range mappings {
+		if strings.EqualFold(item.KitName, kitName) && strings.EqualFold(item.CCNo, ccNo) {
+			result = append(result, item) // Append full struct
+		}
+	}
+	return result
+}
+
+func GetBox(mappings []models.BhishamMappingData) []string {
+	uniqueCCNo := make(map[string]bool) // To store unique values
+	var result []string
+
+	for _, item := range mappings {
+		if _, exists := uniqueCCNo[item.CCNo]; !exists {
+			uniqueCCNo[item.CCNo] = true
+			result = append(result, item.CCNo)
+		}
+	}
+	return result
+}
+
+// Helper function to execute an update query and check affected rows
+func executeUpdateQuery(tx *sql.Tx, query string, params []interface{}) error {
+	res, err := tx.Exec(query, params...)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no records updated")
+	}
+	return nil
 }

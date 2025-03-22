@@ -13,3 +13,15 @@ type BhishamService struct {
 func (s *BhishamService) CreateBhisham(game models.Bhisham) (map[string]interface{}, error) {
 	return s.GameRepo.CreateBhisham(game)
 }
+
+func (s *BhishamService) CreateBhishamData(BhishamID int, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.CreateBhishamData(BhishamID, UserID)
+}
+
+func (s *BhishamService) UpdateBhishamData(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.UpdateBhishamData(obj, UserID)
+}
+
+func (s *BhishamService) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.UpdateBhishamMapping(obj, UserID)
+}

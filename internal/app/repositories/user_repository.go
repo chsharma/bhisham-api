@@ -62,7 +62,7 @@ func (r *UserRepository) AuthenticateUser(loginID, password string) (map[string]
 	}
 
 	// Generate Token
-	newToken, _ := middleware.GenerateNewToken(user.UserID) // Use user.UserID instead of separate user_id
+	newToken, _ := middleware.GenerateNewToken(user.LoginID) // Use user.UserID instead of separate user_id
 	token := map[string]interface{}{
 		"token": newToken,
 	}

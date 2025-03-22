@@ -30,6 +30,8 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 
 	// Bhisham Routes
 	mux.Handle(url+"/bhisham/create", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.CreateBhisham)))
+	mux.Handle(url+"/bhisham/create-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.CreateBhishamData)))
+	mux.Handle(url+"/bhisham/update-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.UpdateBhishamData)))
 
 	// Dashboard Routes
 	mux.Handle(url+"/dashboard/get-stats", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetDashboardStats)))
