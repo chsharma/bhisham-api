@@ -2,7 +2,7 @@ package router
 
 import (
 	"bhisham-api/internal/app/handlers"
-	"bhisham-api/internal/app/middleware"
+	"bhisham-api/internal/middleware"
 	"fmt"
 	"net/http"
 )

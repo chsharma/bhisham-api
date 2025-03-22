@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"bhisham-api/internal/app/helper"
-	"bhisham-api/internal/app/middleware"
 	"bhisham-api/internal/app/models"
 	"bhisham-api/internal/app/utils"
+	"bhisham-api/internal/middleware"
 
 	"golang.org/x/crypto/bcrypt"
 )
