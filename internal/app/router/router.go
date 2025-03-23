@@ -38,12 +38,15 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 	mux.Handle(url+"/bhisham/create", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.CreateBhisham)))
 	mux.Handle(url+"/bhisham/create-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.CreateBhishamData)))
 	mux.Handle(url+"/bhisham/update-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.UpdateBhishamData)))
+	mux.Handle(url+"/bhisham/update-mapping-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.UpdateBhishamMapping)))
 
 	// Dashboard Routes
 	mux.Handle(url+"/dashboard/get-stats", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetDashboardStats)))
 	mux.Handle(url+"/dashboard/get-bhisham", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetBhisham)))
 	mux.Handle(url+"/dashboard/get-cubes", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetChildCube)))
 	mux.Handle(url+"/dashboard/get-kits", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetChildKits)))
+	mux.Handle(url+"/dashboard/get-items", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetKitItems)))
+	mux.Handle(url+"/handheld/get-all-data", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetAllBhishamData)))
 
 	return mux
 }

@@ -23,3 +23,11 @@ func (s *DashboardService) GetChildCube(BhishamID, MotherCubeID int) (map[string
 func (s *DashboardService) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
 	return s.DashboardRepo.GetChildKits(BhishamID, MotherCubeID, CCNo)
 }
+
+func (s *DashboardService) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
+	return s.DashboardRepo.GetKitItems(BhishamID, MotherCubeID, CCNo, KitName)
+}
+
+func (s *DashboardService) GetAllBhishamData(BhishamID int) (map[string]interface{}, error) {
+	return s.DashboardRepo.GetAllBhishamData(BhishamID)
+}
