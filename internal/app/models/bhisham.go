@@ -3,14 +3,14 @@ package models
 import "time"
 
 type Bhisham struct {
-	ID           int        `json:"id" db:"id"`
-	SerialNo     string     `json:"serial_no" db:"serial_no"`
-	BhishamName  *string    `json:"bhisham_name,omitempty" db:"bhisham_name"`
-	CreatedBy    *string    `json:"created_by,omitempty" db:"created_by"`
-	CreatedAt    *time.Time `json:"created_at,omitempty" db:"created_at"`
-	IsComplete   *int       `json:"is_complete,omitempty" db:"is_complete"`
-	CompleteBy   *string    `json:"complete_by,omitempty" db:"complete_by"`
-	CompleteTime *string    `json:"complete_time,omitempty" db:"complete_time"`
+	ID           int        `json:"id"`
+	SerialNo     string     `json:"serial_no"`
+	BhishamName  *string    `json:"bhisham_name"`
+	CreatedBy    *string    `json:"created_by"`
+	CreatedAt    *time.Time `json:"created_at"`
+	IsComplete   *int       `json:"is_complete"`
+	CompleteBy   *string    `json:"complete_by"`
+	CompleteTime *string    `json:"complete_time"`
 }
 
 type BhishamMapping struct {

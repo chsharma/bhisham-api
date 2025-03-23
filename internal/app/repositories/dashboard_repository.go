@@ -49,9 +49,9 @@ func (r *DashboardRepository) GetDashboardStats() (map[string]interface{}, error
 
 func (r *DashboardRepository) GetBhisham() (map[string]interface{}, error) {
 
-	rows, err := r.DB.Query(`SELECT * FROM public.bhisham`)
+	rows, err := r.DB.Query(`SELECT id, serial_no, bhisham_name, created_by, created_at, is_complete, complete_by, complete_time FROM public.bhisham`)
 	if err != nil {
-		return helper.CreateDynamicResponse("Error fetching users", false, nil, 500, nil), err
+		return helper.CreateDynamicResponse("Error fetching bhishams", false, nil, 500, nil), err
 	}
 	defer rows.Close()
 
@@ -62,11 +62,11 @@ func (r *DashboardRepository) GetBhisham() (map[string]interface{}, error) {
 			&bh.ID, &bh.SerialNo, &bh.BhishamName, &bh.CreatedBy, &bh.CreatedAt, &bh.IsComplete,
 			&bh.CompleteBy, &bh.CompleteTime,
 		); err != nil {
-			return helper.CreateDynamicResponse("Error scanning user data", false, nil, 500, nil), err
+			return helper.CreateDynamicResponse("Error scanning bhisham data", false, nil, 500, nil), err
 		}
 		bhs = append(bhs, bh)
 	}
-	return helper.CreateDynamicResponse("All users fetched successfully", true, bhs, 200, nil), nil
+	return helper.CreateDynamicResponse("All bhishams fetched successfully", true, bhs, 200, nil), nil
 
 }
 
@@ -100,6 +100,35 @@ func (r *DashboardRepository) GetChildCube(BhishamID, MotherCubeID int) (map[str
 }
 
 func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
+	rows, err := r.DB.Query(`SELECT DISTINCT bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit 
+                            FROM public.bhisham_mapping 
+                            WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3`,
+		BhishamID, MotherCubeID, CCNo)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching kits", false, nil, 500, nil), err
+	}
+	defer rows.Close()
+
+	var kits []models.BhishamKit
+	for rows.Next() {
+		var kit models.BhishamKit
+		if err := rows.Scan(
+			&kit.BhishamID, &kit.MCNo, &kit.CCNo, &kit.KitCode, &kit.KitName, &kit.NoOfKit,
+		); err != nil {
+			return helper.CreateDynamicResponse("Error scanning kits data", false, nil, 500, nil), err
+		}
+		kits = append(kits, kit)
+	}
+
+	// Handle case where no records are found
+	if len(kits) == 0 {
+		return helper.CreateDynamicResponse("No kits found", true, []models.BhishamKit{}, 200, nil), nil
+	}
+
+	return helper.CreateDynamicResponse("All kits fetched successfully", true, kits, 200, nil), nil
+}
+
+func (r *DashboardRepository) GetChKitItem(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
 	rows, err := r.DB.Query(`SELECT DISTINCT bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit 
                             FROM public.bhisham_mapping 
                             WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3`,
