@@ -31,3 +31,7 @@ func (s *DashboardService) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitNam
 func (s *DashboardService) GetAllBhishamData(BhishamID int) (map[string]interface{}, error) {
 	return s.DashboardRepo.GetAllBhishamData(BhishamID)
 }
+
+func (s *DashboardService) GetUpdateType() (map[string]interface{}, error) {
+	return s.DashboardRepo.GetUpdateType()
+}

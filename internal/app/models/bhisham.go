@@ -122,3 +122,8 @@ type BhishamData struct {
 	KitName        string `json:"kitname"`
 	NoOfKit        int    `json:"no_of_kit"`
 }
+
+type UpdateType struct {
+	UpdateTypeID int    `json:"update_typeid"`
+	Name         string `json:"name"`
+}

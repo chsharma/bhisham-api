@@ -193,3 +193,25 @@ func (r *DashboardRepository) GetAllBhishamData(BhishamID int) (map[string]inter
 
 	return helper.CreateDynamicResponse("Data fetched successfully", true, bhishamDataList, 200, nil), nil
 }
+
+func (r *DashboardRepository) GetUpdateType() (map[string]interface{}, error) {
+
+	rows, err := r.DB.Query(`select update_typeid,name from public.data_update_type order by order_by`)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching data_update_type", false, nil, 500, nil), err
+	}
+	defer rows.Close()
+
+	var bhs []models.UpdateType
+	for rows.Next() {
+		var bh models.UpdateType
+		if err := rows.Scan(
+			&bh.UpdateTypeID, &bh.Name,
+		); err != nil {
+			return helper.CreateDynamicResponse("Error scanning data_update_type ? "+err.Error(), false, nil, 500, nil), err
+		}
+		bhs = append(bhs, bh)
+	}
+	return helper.CreateDynamicResponse("All bhidata_update_type fetched successfully", true, bhs, 200, nil), nil
+
+}

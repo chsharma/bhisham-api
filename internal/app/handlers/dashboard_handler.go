@@ -176,3 +176,13 @@ func (c *DashboardHandler) GetAllBhishamData(w http.ResponseWriter, r *http.Requ
 	// Send final response
 	helper.SendFinalResponse(w, result)
 }
+
+func (c *DashboardHandler) GetUpdateType(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, nil, false, "Method not allowed", nil)
+		return
+	}
+	// Call service with parsed values
+	result, _ := c.DashboardService.GetUpdateType()
+	helper.SendFinalResponse(w, result)
+}
