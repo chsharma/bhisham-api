@@ -46,8 +46,12 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 	mux.Handle(url+"/dashboard/get-cubes", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetChildCube)))
 	mux.Handle(url+"/dashboard/get-kits", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetChildKits)))
 	mux.Handle(url+"/dashboard/get-items", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetKitItems)))
-	mux.Handle(url+"/handheld/get-all-data", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetAllBhishamData)))
+	mux.Handle(url+"/dashboard/get-mapping-items", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetMappingKitItems)))
+
 	mux.Handle(url+"/dashboard/data-update-type", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetUpdateType)))
+
+	mux.Handle(url+"/handheld/get-all-data", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetAllBhishamData)))
+	mux.Handle(url+"/handheld/get-bhishamid", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetBhishamID)))
 
 	return mux
 }

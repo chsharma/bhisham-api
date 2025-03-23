@@ -159,6 +159,36 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 	return helper.CreateDynamicResponse("All items fetched successfully", true, kits, 200, nil), nil
 }
 
+func (r *DashboardRepository) GetMappingKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
+	query := `SELECT id, mc_no, cube_number, kitname, 1 as kit_no, batch_no_sr_no, item_name as sku_name, mfd, exp, manufactured_by, no_of_item as sku_qty FROM public.bhisham_mapping 
+			  WHERE bhisham_id=$1 AND mc_no=$2 AND cube_number=$3 and kitname=$4`
+
+	rows, err := r.DB.Query(query, BhishamID, MotherCubeID, CCNo, KitName)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching items "+err.Error(), false, nil, 500, nil), err
+	}
+	defer rows.Close()
+
+	var kits []models.KitItems
+	for rows.Next() {
+		var kit models.KitItems
+		if err := rows.Scan(
+			&kit.ID, &kit.MCNo, &kit.CubeNumber, &kit.KitName, &kit.KitNo,
+			&kit.BatchNoSrNo, &kit.SKUName, &kit.Mfd, &kit.Exp, &kit.ManufacturedBy, &kit.SKUQty,
+		); err != nil {
+			return helper.CreateDynamicResponse("Error scanning items data", false, nil, 500, nil), err
+		}
+		kits = append(kits, kit)
+	}
+
+	// Handle case where no records are found
+	if len(kits) == 0 {
+		return helper.CreateDynamicResponse("No items found", true, []models.KitItems{}, 200, nil), nil
+	}
+
+	return helper.CreateDynamicResponse("All items fetched successfully", true, kits, 200, nil), nil
+}
+
 func (r *DashboardRepository) GetAllBhishamData(BhishamID int) (map[string]interface{}, error) {
 	query := `SELECT id, bhisham_id, mc_no, mc_name, mc_epc, cc_no, cc_name, cc_epc, kitcode, kit_no, kit_epc, 
 	                 kit_batch_no, kit_expiry, kit_qty, sku_code, sku_name, batch_no_sr_no, mfd, exp, 
@@ -214,4 +244,27 @@ func (r *DashboardRepository) GetUpdateType() (map[string]interface{}, error) {
 	}
 	return helper.CreateDynamicResponse("All bhidata_update_type fetched successfully", true, bhs, 200, nil), nil
 
+}
+
+func (r *DashboardRepository) GetBhishamID(SerialNo string) (map[string]interface{}, error) {
+	var BhishamID int
+
+	// Use parameterized query to avoid SQL injection
+	query := `SELECT id FROM public.bhisham WHERE serial_no = $1 LIMIT 1`
+	rows, err := r.DB.Query(query, SerialNo)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching Bhisham ID", false, nil, 500, nil), err
+	}
+	defer rows.Close() // Ensure rows are closed after use
+
+	// Check if there's a result
+	if rows.Next() {
+		if err := rows.Scan(&BhishamID); err != nil {
+			return helper.CreateDynamicResponse("Error scanning Bhisham ID", false, nil, 500, nil), err
+		}
+	} else {
+		return helper.CreateDynamicResponse("No record found", false, nil, 404, nil), nil
+	}
+
+	return helper.CreateDynamicResponse("Bhisham ID fetched successfully", true, BhishamID, 200, nil), nil
 }

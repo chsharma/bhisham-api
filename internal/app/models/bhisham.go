@@ -127,3 +127,7 @@ type UpdateType struct {
 	UpdateTypeID int    `json:"update_typeid"`
 	Name         string `json:"name"`
 }
+
+type SerialNo struct {
+	SerialNo string `json:"loginid"`
+}

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bhisham-api/internal/app/helper"
+	"bhisham-api/internal/app/models"
 	"bhisham-api/internal/app/services"
+	"encoding/json"
 	"net/http"
 	"strconv"
 )
@@ -144,6 +146,39 @@ func (c *DashboardHandler) GetKitItems(w http.ResponseWriter, r *http.Request) {
 	helper.SendFinalResponse(w, result)
 }
 
+func (c *DashboardHandler) GetMappingKitItems(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, nil, false, "Method not allowed", nil)
+		return
+	}
+
+	// Extract query parameters
+	bhishamIDStr := r.URL.Query().Get("bhishamid")
+	motherCubeIDStr := r.URL.Query().Get("mcno")
+	cubeNumberStr := r.URL.Query().Get("ccno")
+	cubeKitNameStr := r.URL.Query().Get("kitname")
+
+	// Validate required parameters
+	if bhishamIDStr == "" || motherCubeIDStr == "" || cubeNumberStr == "" || cubeKitNameStr == "" {
+		helper.SendResponse(w, http.StatusBadRequest, nil, false, "Missing required parameters", nil)
+		return
+	}
+
+	// Convert parameters to integers
+	bhishamID, err1 := strconv.Atoi(bhishamIDStr)
+	motherCubeID, err2 := strconv.Atoi(motherCubeIDStr)
+	cubeNumber, err3 := strconv.Atoi(cubeNumberStr)
+
+	if err1 != nil || err2 != nil || err3 != nil {
+		helper.SendResponse(w, http.StatusBadRequest, nil, false, "Invalid parameter format", nil)
+		return
+	}
+
+	// Call service layer
+	result, _ := c.DashboardService.GetMappingKitItems(bhishamID, motherCubeID, cubeNumber, cubeKitNameStr)
+	helper.SendFinalResponse(w, result)
+}
+
 func (c *DashboardHandler) GetAllBhishamData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		helper.SendResponse(w, http.StatusMethodNotAllowed, nil, false, "Method not allowed", nil)
@@ -184,5 +219,20 @@ func (c *DashboardHandler) GetUpdateType(w http.ResponseWriter, r *http.Request)
 	}
 	// Call service with parsed values
 	result, _ := c.DashboardService.GetUpdateType()
+	helper.SendFinalResponse(w, result)
+}
+
+func (c *DashboardHandler) GetBhishamID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, "", false, "Method not allowed", nil)
+		return
+	}
+	var bsm models.SerialNo
+	err := json.NewDecoder(r.Body).Decode(&bsm)
+	if err != nil {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "Invalid input", nil)
+		return
+	}
+	result, _ := c.DashboardService.GetBhishamID(bsm.SerialNo)
 	helper.SendFinalResponse(w, result)
 }
