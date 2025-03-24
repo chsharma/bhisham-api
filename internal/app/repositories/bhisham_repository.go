@@ -17,7 +17,7 @@ type BhishamRepository struct {
 	DB *sql.DB
 }
 
-func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]interface{}, error) {
+func (r *BhishamRepository) oldCreateBhisham(bhisham models.Bhisham) (map[string]interface{}, error) {
 	// Validate SerialNo
 	if bhisham.SerialNo == "" {
 		return helper.CreateDynamicResponse("Serial No is required", false, nil, 400, nil), errors.New("serial_no cannot be empty")
@@ -84,6 +84,107 @@ func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]in
 	_, err = tx.Exec(query, user_id, bhisham.BhishamName, bhisham.SerialNo, string(hashedPwd), 3)
 	if err != nil {
 		return helper.CreateDynamicResponse("Error creating user", false, nil, 500, nil), err
+	}
+
+	// Commit Transaction
+	err = tx.Commit()
+	if err != nil {
+		return helper.CreateDynamicResponse("Transaction commit failed", false, nil, 500, nil), err
+	}
+
+	// Success Response with Inserted ID
+	return helper.CreateDynamicResponse("Bhisham Created Successfully", true, map[string]interface{}{"id": newID}, 200, nil), nil
+}
+
+func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]interface{}, error) {
+	// Validate SerialNo
+	if bhisham.SerialNo == "" {
+		return helper.CreateDynamicResponse("Serial No is required", false, nil, 400, nil), errors.New("serial_no cannot be empty")
+	}
+
+	// Begin Transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Failed to start transaction", false, nil, 500, nil), err
+	}
+
+	// Rollback in case of failure
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Check if SerialNo already exists
+	var exists bool
+	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM bhisham WHERE serial_no = $1)", bhisham.SerialNo).Scan(&exists)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error checking existing Serial No", false, nil, 500, nil), err
+	}
+	if exists {
+		return helper.CreateDynamicResponse("Serial No already exists", false, nil, 400, nil), errors.New("duplicate serial_no")
+	}
+
+	// Insert New Record and Return ID
+	var newID int
+	insertBhishamQuery := `INSERT INTO bhisham (serial_no, bhisham_name, created_by, created_at)
+                           VALUES ($1, $2, $3, NOW()) RETURNING id`
+
+	err = tx.QueryRow(insertBhishamQuery, bhisham.SerialNo, bhisham.BhishamName, bhisham.CreatedBy).Scan(&newID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error Creating Bhisham", false, nil, 400, nil), err
+	}
+
+	// Generate 8-digit bhisham_id with leading zeros
+	bhishamIdPadded := fmt.Sprintf("%08d", newID)
+
+	// Insert into bhisham_mapping from default_bhisham with formatted EPCs
+	insertMappingQuery := `INSERT INTO bhisham_mapping (
+        bhisham_id, serial_no, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
+        item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, cc_epc, mc_epc, 
+        mc_name, no_of_item, is_cube, cube_number
+    ) SELECT $1, $2, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
+        item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, 
+        'CA' || mc_no || $3 || '00000000000' || LPAD(cube_number::text, 2, '0'),  -- CC EPC
+        'A0' || mc_no || $3 || '0000000000000',  -- MC EPC
+        mc_name, no_of_item, is_cube, cube_number 
+    FROM public.default_bhisham ORDER BY mc_no, cube_number;`
+
+	_, err = tx.Exec(insertMappingQuery, newID, bhisham.SerialNo, bhishamIdPadded)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error inserting into Bhisham Mapping", false, nil, 400, nil), err
+	}
+
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte("00000"), bcrypt.DefaultCost)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error hashing password", false, nil, 500, nil), err
+	}
+
+	Updatequery := `UPDATE public.bhisham_mapping 
+	SET kit_expiry = temp.min_expiry
+	FROM (
+		SELECT cc_no, kitname, MIN(CAST(exp AS DATE)) AS min_expiry 
+		FROM public.bhisham_mapping 
+		WHERE LENGTH(exp) > 5 AND bhisham_id = $1
+		GROUP BY cc_no, kitname
+	) temp  
+	WHERE public.bhisham_mapping.kitname = temp.kitname 
+	AND public.bhisham_mapping.cc_no = temp.cc_no
+	AND public.bhisham_mapping.bhisham_id = $1`
+
+	_, err = tx.Exec(Updatequery, newID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error updating expiry >"+err.Error(), false, nil, 500, nil), err
+	}
+
+	var user_id = utils.GenerateId()
+
+	query := `INSERT INTO user_login (user_id, name, login_id, pwd, role_id, created_at) 
+              VALUES ($1, $2, $3, $4, $5, NOW())`
+
+	_, err = tx.Exec(query, user_id, bhisham.BhishamName, bhisham.SerialNo, string(hashedPwd), 3)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error creating user >"+err.Error(), false, nil, 500, nil), err
 	}
 
 	// Commit Transaction
@@ -172,7 +273,7 @@ func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map
 						for _, item := range KitItems {
 							_, err := stmt.Exec(
 								item.BhishamID, item.MCNo, item.MCName, item.MCEPC,
-								item.CCNo, item.CCName, item.CCEPC, item.KitCode, kitNo, GenerateKitEPC(item.MCNo, item.CubeNumber, kitNo),
+								item.CCNo, item.CCName, item.CCEPC, item.KitCode, kitNo, GenerateKitEPC(BhishamID, item.MCNo, item.CubeNumber, kitNo),
 								item.BatchNoSrNo, minExpiry, item.NoOfKit, item.SKUCode, item.ItemName,
 								item.BatchNoSrNo, item.MFD, item.EXP, item.ManufacturedBy, item.TotalQty, item.CubeNumber, item.KitName, item.NoOfKit,
 							)
@@ -433,8 +534,44 @@ func FindMinExpiry(items []models.BhishamMappingData) string {
 	return minExpiry
 }
 
-func GenerateKitEPC(mcNo int, boxNumber int, packNo int) string {
-	return fmt.Sprintf("B"+"A0%dCA%d0%02d000000000000%02d", mcNo, mcNo, boxNumber, packNo)
+func GenerateKitEPC(bhishamID, mcNo, boxNumber, packNo int) string {
+	// Format components with strict padding:
+	// - bhishamID: 8 digits (padded with leading zeros)
+	// - mcNo: used as-is (must be 3 digits for consistent length)
+	// - boxNumber: 2 digits (padded with leading zeros)
+	// - packNo: 2 digits (padded with leading zeros) as last two characters
+
+	// Validate mcNo is exactly 3 digits
+	mcNoStr := fmt.Sprintf("%03d", mcNo)
+	if len(mcNoStr) != 3 {
+		mcNoStr = fmt.Sprintf("%03d", mcNo%1000) // Force to 3 digits
+	}
+
+	// Pad all other components
+	bhishamIDPadded := fmt.Sprintf("%08d", bhishamID)
+	boxNumberPadded := fmt.Sprintf("%02d", boxNumber)
+	packNoPadded := fmt.Sprintf("%02d", packNo)
+
+	// Construct fixed-format EPC (24 characters total)
+	// Format: "BA0" + mcNo (3) + "CA" + mcNo (3) + "0" + boxNumber (2) + bhishamID (8) + "00" + packNo (2)
+	epc := fmt.Sprintf("BA0%sCA%s0%s%s00%s",
+		mcNoStr,
+		mcNoStr,
+		boxNumberPadded,
+		bhishamIDPadded,
+		packNoPadded)
+
+	// Final validation (should always be 24 chars with this construction)
+	if len(epc) != 24 {
+		// Fallback to ensure length if assumptions fail
+		if len(epc) > 24 {
+			epc = epc[:24]
+		} else {
+			epc += strings.Repeat("0", 24-len(epc))
+		}
+	}
+
+	return epc
 }
 
 func GetProductsByKit(mappings []models.BhishamMappingData, kitName string, ccNo string) []models.BhishamMappingData {

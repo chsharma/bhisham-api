@@ -97,11 +97,7 @@ func (c *DashboardHandler) GetChildKits(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Call service layer
-	result, err := c.DashboardService.GetChildKits(bhishamID, motherCubeID, cubeNumber)
-	if err != nil {
-		helper.SendResponse(w, http.StatusInternalServerError, nil, false, "Failed to fetch kits", nil)
-		return
-	}
+	result, _ := c.DashboardService.GetChildKits(bhishamID, motherCubeID, cubeNumber)
 
 	// Send final response
 	helper.SendFinalResponse(w, result)
@@ -136,12 +132,7 @@ func (c *DashboardHandler) GetKitItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call service layer
-	result, err := c.DashboardService.GetKitItems(bhishamID, motherCubeID, cubeNumber, cubeKitNameStr)
-	if err != nil {
-		helper.SendResponse(w, http.StatusInternalServerError, nil, false, "Failed to fetch kits", nil)
-		return
-	}
-
+	result, _ := c.DashboardService.GetKitItems(bhishamID, motherCubeID, cubeNumber, cubeKitNameStr)
 	// Send final response
 	helper.SendFinalResponse(w, result)
 }
@@ -202,12 +193,7 @@ func (c *DashboardHandler) GetAllBhishamData(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Call service layer
-	result, err := c.DashboardService.GetAllBhishamData(bhishamID)
-	if err != nil {
-		helper.SendResponse(w, http.StatusInternalServerError, nil, false, "Failed to fetch kits", nil)
-		return
-	}
-
+	result, _ := c.DashboardService.GetAllBhishamData(bhishamID)
 	// Send final response
 	helper.SendFinalResponse(w, result)
 }

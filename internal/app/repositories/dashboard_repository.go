@@ -100,12 +100,12 @@ func (r *DashboardRepository) GetChildCube(BhishamID, MotherCubeID int) (map[str
 }
 
 func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
-	rows, err := r.DB.Query(`SELECT bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit , count(bhisham_id) as total, SUM(is_update) as total_update
+	rows, err := r.DB.Query(`SELECT bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit ,COALESCE(kit_expiry, 'NA') AS kit_expiry, count(bhisham_id) as total, SUM(is_update) as total_update
                             FROM public.bhisham_mapping
-                            WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 group by bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit`,
+                            WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 group by bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit, kit_expiry`,
 		BhishamID, MotherCubeID, CCNo)
 	if err != nil {
-		return helper.CreateDynamicResponse("Error fetching kits", false, nil, 500, nil), err
+		return helper.CreateDynamicResponse("Error fetching kits "+err.Error(), false, nil, 500, nil), err
 	}
 	defer rows.Close()
 
@@ -113,9 +113,9 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 	for rows.Next() {
 		var kit models.BhishamKit
 		if err := rows.Scan(
-			&kit.BhishamID, &kit.MCNo, &kit.CCNo, &kit.KitCode, &kit.KitName, &kit.NoOfKit, &kit.Total, &kit.TotalUpdate,
+			&kit.BhishamID, &kit.MCNo, &kit.CCNo, &kit.KitCode, &kit.KitName, &kit.NoOfKit, &kit.KitExpiry, &kit.Total, &kit.TotalUpdate,
 		); err != nil {
-			return helper.CreateDynamicResponse("Error scanning kits data", false, nil, 500, nil), err
+			return helper.CreateDynamicResponse("Error scanning kits data "+err.Error(), false, nil, 500, nil), err
 		}
 		kits = append(kits, kit)
 	}
@@ -129,9 +129,15 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 }
 
 func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
-	query := `SELECT id, mc_no, cube_number, kitname, kit_no, batch_no_sr_no, sku_name, mfd, exp, manufactured_by, sku_qty,is_update,update_time,updated_by
-			  FROM public.bhisham_data 
-			  WHERE bhisham_id=$1 AND mc_no=$2 AND cube_number=$3 and kitname=$4 and kit_no = 1`
+	query := `SELECT id, mc_no, cube_number, kitname, kit_no, batch_no_sr_no, 
+                     sku_name, mfd, exp, manufactured_by, sku_qty, 
+                     is_update, update_time, updated_by
+              FROM public.bhisham_data 
+              WHERE bhisham_id = $1 
+                AND mc_no = $2 
+                AND cube_number = $3 
+                AND kitname = $4 
+                AND kit_no = 1`
 
 	rows, err := r.DB.Query(query, BhishamID, MotherCubeID, CCNo, KitName)
 	if err != nil {
@@ -142,13 +148,31 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 	var kits []models.KitItems
 	for rows.Next() {
 		var kit models.KitItems
-		if err := rows.Scan(
-			&kit.ID, &kit.MCNo, &kit.CubeNumber, &kit.KitName, &kit.KitNo,
-			&kit.BatchNoSrNo, &kit.SKUName, &kit.Mfd, &kit.Exp, &kit.ManufacturedBy, &kit.SKUQty, &kit.IsUpdate, &kit.UpdateTime, &kit.UpdateBy,
-		); err != nil {
+		err := rows.Scan(
+			&kit.ID,
+			&kit.MCNo,
+			&kit.CubeNumber,
+			&kit.KitName,
+			&kit.KitNo,
+			&kit.BatchNoSrNo,
+			&kit.SKUName,
+			&kit.Mfd,
+			&kit.Exp,
+			&kit.ManufacturedBy,
+			&kit.SKUQty,
+			&kit.IsUpdate,
+			&kit.UpdateTime,
+			&kit.UpdateBy,
+		)
+		if err != nil {
 			return helper.CreateDynamicResponse("Error scanning items data", false, nil, 500, nil), err
 		}
 		kits = append(kits, kit)
+	}
+
+	// Check for errors that may have occurred during iteration
+	if err = rows.Err(); err != nil {
+		return helper.CreateDynamicResponse("Error after row iteration", false, nil, 500, nil), err
 	}
 
 	// Handle case where no records are found
@@ -156,7 +180,7 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 		return helper.CreateDynamicResponse("No items found", true, []models.KitItems{}, 200, nil), nil
 	}
 
-	return helper.CreateDynamicResponse("All items fetched successfully", true, kits, 200, nil), nil
+	return helper.CreateDynamicResponse("Items fetched successfully", true, kits, 200, nil), nil
 }
 
 func (r *DashboardRepository) GetMappingKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
@@ -225,7 +249,7 @@ func (r *DashboardRepository) GetAllBhishamData(BhishamID int) (map[string]inter
 			&data.ID, &data.BhishamID, &data.MCNo, &data.MCName, &data.MCEPC, &data.CCNo, &data.CCName, &data.CCEPC,
 			&data.KitCode, &data.KitNo, &data.KitEPC, &data.KitBatchNo, &data.KitExpiry, &data.KitQty,
 			&data.SKUCode, &data.SKUName, &data.BatchNoSrNo, &data.Mfd, &data.Exp,
-			&data.ManufacturedBy, &data.SKUQty, &data.CubeNumber, &data.KitName, &data.NoOfKit, &data.UpdateTime, &data.UpdateBy,
+			&data.ManufacturedBy, &data.SKUQty, &data.CubeNumber, &data.KitName, &data.NoOfKit, &data.IsUpdate, &data.UpdateTime, &data.UpdateBy,
 		)
 		if err != nil {
 			return helper.CreateDynamicResponse("Error scanning data", false, nil, 500, nil), err

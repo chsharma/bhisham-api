@@ -35,6 +35,7 @@ type BhishamKit struct {
 	KitCode     string `json:"kitcode"`
 	KitName     string `json:"kitname"`
 	NoOfKit     int    `json:"no_of_kit"`
+	KitExpiry   string `json:"kit_expiry"`
 	Total       int    `json:"total_item"`
 	TotalUpdate int    `json:"total_update_item"`
 }
