@@ -43,3 +43,7 @@ func (s *DashboardService) GetUpdateType() (map[string]interface{}, error) {
 func (s *DashboardService) GetBhishamID(SerialNo string) (map[string]interface{}, error) {
 	return s.DashboardRepo.GetBhishamID(SerialNo)
 }
+
+func (s *DashboardService) GetAllMappingBhishamData(BhishamID int) (map[string]interface{}, error) {
+	return s.DashboardRepo.GetAllMappingBhishamData(BhishamID)
+}

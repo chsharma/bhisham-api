@@ -33,6 +33,9 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 	// User Routes
 	mux.Handle(url+"/user/login", http.HandlerFunc(r.UserHandler.AuthenticateUser))
 	mux.Handle(url+"/user/create-user", middleware.JWTAuthentication(http.HandlerFunc(r.UserHandler.CreateUser)))
+	mux.Handle(url+"/user/get-users", middleware.JWTAuthentication(http.HandlerFunc(r.UserHandler.GetUsers)))
+	mux.Handle(url+"/user/update-password", middleware.JWTAuthentication(http.HandlerFunc(r.UserHandler.UpdatePassword)))
+	mux.Handle(url+"/user/update-user", middleware.JWTAuthentication(http.HandlerFunc(r.UserHandler.UpdateUser)))
 
 	// Bhisham Routes
 	mux.Handle(url+"/bhisham/create", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.CreateBhisham)))
@@ -52,6 +55,8 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 
 	mux.Handle(url+"/handheld/get-all-data", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetAllBhishamData)))
 	mux.Handle(url+"/handheld/get-bhishamid", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetBhishamID)))
+
+	mux.Handle(url+"/dashboard/get-mapp-data", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetAllMappingBhishamData)))
 
 	return mux
 }

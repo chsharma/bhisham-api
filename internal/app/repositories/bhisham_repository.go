@@ -3,11 +3,14 @@ package repositories
 import (
 	"bhisham-api/internal/app/helper"
 	"bhisham-api/internal/app/models"
+	"bhisham-api/internal/app/utils"
 	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type BhishamRepository struct {
@@ -66,6 +69,21 @@ func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]in
 	_, err = tx.Exec(insertMappingQuery, newID, bhisham.SerialNo)
 	if err != nil {
 		return helper.CreateDynamicResponse("Error inserting into Bhisham Mapping", false, nil, 400, nil), err
+	}
+
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte("00000"), bcrypt.DefaultCost)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error hashing password", false, nil, 500, nil), err
+	}
+
+	var user_id = utils.GenerateId()
+
+	query := `INSERT INTO user_login (user_id, name, login_id, pwd, role_id, created_at) 
+              VALUES ($1, $2, $3, $4, $5, NOW())`
+
+	_, err = tx.Exec(query, user_id, bhisham.BhishamName, bhisham.SerialNo, string(hashedPwd), 3)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error creating user", false, nil, 500, nil), err
 	}
 
 	// Commit Transaction
@@ -193,31 +211,31 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 	switch obj.UpdateType {
 	case 1:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
+						  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo}
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
+						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, UserID}
 
 	case 2:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
+						  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
+						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
 
 	case 3:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE id=$4`
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$5
+						  WHERE id=$4`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID}
-		ParamsMapping = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
+						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
+						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID, UserID}
+		ParamsMapping = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
 
 	default:
 		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
@@ -267,7 +285,7 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 	return helper.CreateDynamicResponse("Bhisham Updated Successfully", true, nil, 200, nil), nil
 }
 
-func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+func (r *BhishamRepository) oldUpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
 	var updateBhishamQuery string
 	var queryParams []interface{}
 
@@ -311,6 +329,63 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 	}
 
 	// Log update in `update_bhisham_data` table
+	logQuery := `INSERT INTO public.update_bhisham_data 
+				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
+
+	_, err = r.DB.Exec(logQuery, logParams...)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error logging update: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil
+}
+
+func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	var updateBhishamQuery string
+	var queryParams []interface{}
+
+	// Determine the update queries based on UpdateType
+	switch obj.UpdateType {
+	case 1:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
+					  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, UserID}
+
+	case 2:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
+					  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
+
+	case 3:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$5
+					  WHERE id=$4`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID, UserID}
+
+	default:
+		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
+	}
+
+	// Execute bhisham_mapping update
+	res, err := r.DB.Exec(updateBhishamQuery, queryParams...)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Check if any rows were affected
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return helper.CreateDynamicResponse("Error fetching update count: "+err.Error(), false, nil, 400, nil), err
+	}
+	if rowsAffected == 0 {
+		return helper.CreateDynamicResponse("No records updated", false, nil, 200, nil), nil
+	}
+
+	// Log the update in `update_bhisham_data` table
 	logQuery := `INSERT INTO public.update_bhisham_data 
 				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`

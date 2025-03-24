@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -93,7 +92,6 @@ func GenerateNewToken(userID string) (string, error) {
 		return "", errors.New("JWT_SECRET is not set in the environment")
 	}
 	jwtSecretKey = []byte(secretKey)
-	fmt.Print(jwtSecretKey)
 	// Create a new JWT token with claims
 	claims := jwt.MapClaims{
 		"user_id": userID,                                     // User's ID

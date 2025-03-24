@@ -11,24 +11,32 @@ type Bhisham struct {
 	IsComplete   *int       `json:"is_complete"`
 	CompleteBy   *string    `json:"complete_by"`
 	CompleteTime *string    `json:"complete_time"`
+	IsHHSynch    *int       `json:"is_hh_synch"`
+	HHSerial     *string    `json:"hh_serial"`
+	HHSynchTime  *string    `json:"hh_synch_time"`
+	HHSynchCount *int       `json:"hh_synch_count"`
 }
 
 type BhishamMapping struct {
-	BhishamID  int    `json:"bhisham_id"`
-	MCNo       int    `json:"mc_no"`
-	MCName     string `json:"mc_name"`
-	CubeNumber int    `json:"cube_number"`
-	CCNo       string `json:"cc_no"`
-	CCName     string `json:"cc_name"`
+	BhishamID   int    `json:"bhisham_id"`
+	MCNo        int    `json:"mc_no"`
+	MCName      string `json:"mc_name"`
+	CubeNumber  int    `json:"cube_number"`
+	CCNo        string `json:"cc_no"`
+	CCName      string `json:"cc_name"`
+	Total       int    `json:"total_item"`
+	TotalUpdate int    `json:"total_update_item"`
 }
 
 type BhishamKit struct {
-	BhishamID int    `json:"bhisham_id"`
-	MCNo      int    `json:"mc_no"`
-	CCNo      string `json:"cc_no"`
-	KitCode   string `json:"kitcode"`
-	KitName   string `json:"kitname"`
-	NoOfKit   int    `json:"no_of_kit"`
+	BhishamID   int    `json:"bhisham_id"`
+	MCNo        int    `json:"mc_no"`
+	CCNo        string `json:"cc_no"`
+	KitCode     string `json:"kitcode"`
+	KitName     string `json:"kitname"`
+	NoOfKit     int    `json:"no_of_kit"`
+	Total       int    `json:"total_item"`
+	TotalUpdate int    `json:"total_update_item"`
 }
 
 type GetChildCube struct {
@@ -83,44 +91,50 @@ type UpdateBhishamData struct {
 }
 
 type KitItems struct {
-	ID             int    `json:"id"`
-	MCNo           int    `json:"mc_no"`
-	CubeNumber     int    `json:"cube_number"`
-	KitName        string `json:"kit_name"`
-	KitNo          int    `json:"kit_no"`
-	BatchNoSrNo    string `json:"batch_no_sr_no"`
-	SKUName        string `json:"sku_name"`
-	Mfd            string `json:"mfd"`
-	Exp            string `json:"exp"`
-	ManufacturedBy string `json:"manufactured_by"`
-	SKUQty         int    `json:"sku_qty"`
+	ID             int     `json:"id"`
+	MCNo           int     `json:"mc_no"`
+	CubeNumber     int     `json:"cube_number"`
+	KitName        string  `json:"kit_name"`
+	KitNo          int     `json:"kit_no"`
+	BatchNoSrNo    string  `json:"batch_no_sr_no"`
+	SKUName        string  `json:"sku_name"`
+	Mfd            string  `json:"mfd"`
+	Exp            string  `json:"exp"`
+	ManufacturedBy string  `json:"manufactured_by"`
+	SKUQty         int     `json:"sku_qty"`
+	IsUpdate       *string `json:"is_update"`
+	UpdateTime     *string `json:"update_time"`
+	UpdateBy       *int    `json:"updated_by"`
 }
 
 type BhishamData struct {
-	ID             int    `json:"id"`
-	BhishamID      int    `json:"bhisham_id"`
-	MCNo           int    `json:"mc_no"`
-	MCName         string `json:"mc_name"`
-	MCEPC          string `json:"mc_epc"`
-	CCNo           string `json:"cc_no"`
-	CCName         string `json:"cc_name"`
-	CCEPC          string `json:"cc_epc"`
-	KitCode        string `json:"kitcode"`
-	KitNo          int    `json:"kit_no"`
-	KitEPC         string `json:"kit_epc"`
-	KitBatchNo     string `json:"kit_batch_no"`
-	KitExpiry      string `json:"kit_expiry"`
-	KitQty         int    `json:"kit_qty"`
-	SKUCode        string `json:"sku_code"`
-	SKUName        string `json:"sku_name"`
-	BatchNoSrNo    string `json:"batch_no_sr_no"`
-	Mfd            string `json:"mfd"`
-	Exp            string `json:"exp"`
-	ManufacturedBy string `json:"manufactured_by"`
-	SKUQty         int    `json:"sku_qty"`
-	CubeNumber     int    `json:"cube_number"`
-	KitName        string `json:"kitname"`
-	NoOfKit        int    `json:"no_of_kit"`
+	ID             int     `json:"id"`
+	BhishamID      int     `json:"bhisham_id"`
+	MCNo           int     `json:"mc_no"`
+	MCName         string  `json:"mc_name"`
+	MCEPC          string  `json:"mc_epc"`
+	CCNo           string  `json:"cc_no"`
+	CCName         string  `json:"cc_name"`
+	CCEPC          string  `json:"cc_epc"`
+	KitCode        string  `json:"kitcode"`
+	KitNo          int     `json:"kit_no"`
+	KitEPC         string  `json:"kit_epc"`
+	KitBatchNo     string  `json:"kit_batch_no"`
+	KitExpiry      string  `json:"kit_expiry"`
+	KitQty         int     `json:"kit_qty"`
+	SKUCode        string  `json:"sku_code"`
+	SKUName        string  `json:"sku_name"`
+	BatchNoSrNo    string  `json:"batch_no_sr_no"`
+	Mfd            string  `json:"mfd"`
+	Exp            string  `json:"exp"`
+	ManufacturedBy string  `json:"manufactured_by"`
+	SKUQty         int     `json:"sku_qty"`
+	CubeNumber     int     `json:"cube_number"`
+	KitName        string  `json:"kitname"`
+	NoOfKit        int     `json:"no_of_kit"`
+	IsUpdate       *string `json:"is_update"`
+	UpdateTime     *string `json:"update_time"`
+	UpdateBy       *int    `json:"updated_by"`
 }
 
 type UpdateType struct {
@@ -130,4 +144,19 @@ type UpdateType struct {
 
 type SerialNo struct {
 	SerialNo string `json:"loginid"`
+}
+
+type ReportBhishamMapping struct {
+	McName         string `json:"mc_name"`
+	CcNo           string `json:"cc_no"`
+	CcName         string `json:"cc_name"`
+	KitName        string `json:"kitname"`
+	NoOfKit        int    `json:"no_of_kit"`
+	SkuCode        string `json:"sku_code"`
+	SkuName        string `json:"sku_name"`
+	BatchNoSrNo    string `json:"batch_no_sr_no"`
+	Mfd            string `json:"mfd"`
+	Exp            string `json:"exp"`
+	ManufacturedBy string `json:"manufactured_by"`
+	NoOfItem       int    `json:"no_of_item"`
 }

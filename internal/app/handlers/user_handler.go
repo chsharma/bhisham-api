@@ -44,6 +44,45 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	helper.SendFinalResponse(w, result)
 }
 
+func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, "", false, "Method not allowed", nil)
+		return
+	}
+
+	var usr models.User
+	err := json.NewDecoder(r.Body).Decode(&usr)
+	if err != nil {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "Invalid input", nil)
+		return
+	}
+	if strings.TrimSpace(usr.UserID) == "" {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "UserID is required", nil)
+		return
+	}
+	if strings.TrimSpace(usr.Name) == "" {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "Name is required", nil)
+		return
+	}
+	if strings.TrimSpace(usr.LoginID) == "" {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "LoginID is required", nil)
+		return
+	}
+	// Call Service to Create User
+	result, _ := h.UserService.UpdateUser(usr)
+	// Success Response
+	helper.SendFinalResponse(w, result)
+}
+
+func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, "", false, "Method not allowed", nil)
+		return
+	}
+	result, _ := h.UserService.GetUsers()
+	helper.SendFinalResponse(w, result)
+}
+
 func (h *UserHandler) AuthenticateUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		helper.SendResponse(w, http.StatusMethodNotAllowed, "", false, "Method not allowed", nil)
@@ -70,6 +109,37 @@ func (h *UserHandler) AuthenticateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	// Call Service to Create User
 	result, _ := h.UserService.AuthenticateUser(creds.LoginID, creds.Password)
+
+	// Success Response
+	helper.SendFinalResponse(w, result)
+}
+
+func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, "", false, "Method not allowed", nil)
+		return
+	}
+
+	var creds struct {
+		LoginID  string `json:"login_id"`
+		Password string `json:"password"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&creds)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(creds.LoginID) == "" {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "LoginID is required", nil)
+		return
+	}
+	if strings.TrimSpace(creds.Password) == "" || len(creds.Password) < 6 {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "Password must be at least 6 characters long", nil)
+		return
+	}
+	// Call Service to Create User
+	result, _ := h.UserService.UpdatePassword(creds.LoginID, creds.Password)
 
 	// Success Response
 	helper.SendFinalResponse(w, result)

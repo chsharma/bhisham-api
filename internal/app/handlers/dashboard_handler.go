@@ -236,3 +236,31 @@ func (c *DashboardHandler) GetBhishamID(w http.ResponseWriter, r *http.Request) 
 	result, _ := c.DashboardService.GetBhishamID(bsm.SerialNo)
 	helper.SendFinalResponse(w, result)
 }
+
+func (c *DashboardHandler) GetAllMappingBhishamData(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helper.SendResponse(w, http.StatusMethodNotAllowed, nil, false, "Method not allowed", nil)
+		return
+	}
+
+	// Extract query parameters
+	bhishamIDStr := r.URL.Query().Get("bhishamid")
+
+	// Validate required parameters
+	if bhishamIDStr == "" {
+		helper.SendResponse(w, http.StatusBadRequest, nil, false, "Missing required parameters", nil)
+		return
+	}
+
+	// Convert parameters to integers
+	bhishamID, err1 := strconv.Atoi(bhishamIDStr)
+	if err1 != nil {
+		helper.SendResponse(w, http.StatusBadRequest, nil, false, "Invalid parameter format", nil)
+		return
+	}
+
+	// Call service layer
+	result, _ := c.DashboardService.GetAllMappingBhishamData(bhishamID)
+	// Send final response
+	helper.SendFinalResponse(w, result)
+}
