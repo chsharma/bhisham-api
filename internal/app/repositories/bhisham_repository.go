@@ -367,6 +367,39 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 		}
 	}
 
+	Updatequery := `UPDATE public.bhisham_mapping 
+	SET kit_expiry = temp.min_expiry
+	FROM (
+		SELECT cc_no, kitname, MIN(CAST(exp AS DATE)) AS min_expiry 
+		FROM public.bhisham_mapping 
+		WHERE LENGTH(exp) > 5 AND bhisham_id = $1
+		GROUP BY cc_no, kitname
+	) temp  
+	WHERE public.bhisham_mapping.kitname = temp.kitname 
+	AND public.bhisham_mapping.cc_no = temp.cc_no
+	AND public.bhisham_mapping.bhisham_id = $1`
+
+	_, err = tx.Exec(Updatequery, obj.BhishamID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error updating expiry >"+err.Error(), false, nil, 500, nil), err
+	}
+
+	Updatequery = `UPDATE public.bhisham_data
+	SET kit_expiry = temp.min_expiry
+	FROM (
+		SELECT kit_epc, MIN(CAST(exp AS DATE)) AS min_expiry 
+		FROM public.bhisham_data 
+		WHERE LENGTH(exp) > 5 AND bhisham_id = $1
+		GROUP BY kit_epc
+	) temp  
+	WHERE public.bhisham_data.kit_epc = temp.kit_epc 
+	AND public.bhisham_data.bhisham_id = $1`
+
+	_, err = tx.Exec(Updatequery, obj.BhishamID)
+	if err != nil {
+		return helper.CreateDynamicResponse("Error updating expiry >"+err.Error(), false, nil, 500, nil), err
+	}
+
 	// Log the update in `update_bhisham_data` table
 	logQuery := `INSERT INTO public.update_bhisham_data 
 				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
@@ -447,6 +480,12 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 	var updateBhishamQuery string
 	var queryParams []interface{}
 
+	// Start transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Failed to start transaction: "+err.Error(), false, nil, 500, nil), err
+	}
+
 	// Determine the update queries based on UpdateType
 	switch obj.UpdateType {
 	case 1:
@@ -468,22 +507,45 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID, UserID}
 
 	default:
+		tx.Rollback() // Rollback transaction on invalid update type
 		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
 	}
 
-	// Execute bhisham_mapping update
-	res, err := r.DB.Exec(updateBhishamQuery, queryParams...)
+	// Execute bhisham_mapping update within the transaction
+	res, err := tx.Exec(updateBhishamQuery, queryParams...)
 	if err != nil {
+		tx.Rollback()
 		return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
 	}
 
 	// Check if any rows were affected
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
+		tx.Rollback()
 		return helper.CreateDynamicResponse("Error fetching update count: "+err.Error(), false, nil, 400, nil), err
 	}
 	if rowsAffected == 0 {
+		tx.Rollback()
 		return helper.CreateDynamicResponse("No records updated", false, nil, 200, nil), nil
+	}
+
+	// Update expiry in bhisham_mapping
+	Updatequery := `UPDATE public.bhisham_mapping 
+	SET kit_expiry = temp.min_expiry
+	FROM (
+		SELECT cc_no, kitname, MIN(CAST(exp AS DATE)) AS min_expiry 
+		FROM public.bhisham_mapping 
+		WHERE LENGTH(exp) > 5 AND bhisham_id = $1
+		GROUP BY cc_no, kitname
+	) temp  
+	WHERE public.bhisham_mapping.kitname = temp.kitname 
+	AND public.bhisham_mapping.cc_no = temp.cc_no
+	AND public.bhisham_mapping.bhisham_id = $1`
+
+	_, err = tx.Exec(Updatequery, obj.BhishamID)
+	if err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error updating expiry >"+err.Error(), false, nil, 500, nil), err
 	}
 
 	// Log the update in `update_bhisham_data` table
@@ -492,9 +554,15 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
 
-	_, err = r.DB.Exec(logQuery, logParams...)
+	_, err = tx.Exec(logQuery, logParams...)
 	if err != nil {
+		tx.Rollback()
 		return helper.CreateDynamicResponse("Error logging update: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return helper.CreateDynamicResponse("Transaction commit failed: "+err.Error(), false, nil, 500, nil), err
 	}
 
 	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil

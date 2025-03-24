@@ -9,5 +9,6 @@ type User struct {
 	Password  string    `json:"password"`
 	Active    bool      `json:"active"`
 	RoleID    int       `json:"role_id"`
+	RoleName  *string   `json:"role_name"`
 	CreatedAt time.Time `json:"created_at"`
 }

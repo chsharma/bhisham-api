@@ -32,16 +32,8 @@ func (s *DashboardService) GetMappingKitItems(BhishamID, MotherCubeID, CCNo int,
 	return s.DashboardRepo.GetMappingKitItems(BhishamID, MotherCubeID, CCNo, KitName)
 }
 
-func (s *DashboardService) GetAllBhishamData(BhishamID int) (map[string]interface{}, error) {
-	return s.DashboardRepo.GetAllBhishamData(BhishamID)
-}
-
 func (s *DashboardService) GetUpdateType() (map[string]interface{}, error) {
 	return s.DashboardRepo.GetUpdateType()
-}
-
-func (s *DashboardService) GetBhishamID(SerialNo string) (map[string]interface{}, error) {
-	return s.DashboardRepo.GetBhishamID(SerialNo)
 }
 
 func (s *DashboardService) GetAllMappingBhishamData(BhishamID int) (map[string]interface{}, error) {

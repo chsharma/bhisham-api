@@ -72,7 +72,8 @@ func (r *UserRepository) UpdateUser(user models.User) (map[string]interface{}, e
 
 // GetUsers retrieves all users from the user_login table
 func (r *UserRepository) GetUsers() (map[string]interface{}, error) {
-	query := `SELECT user_id, name, login_id, role_id, created_at, active FROM user_login`
+	query := `SELECT ul.user_id, ul.name, ul.login_id, ul.role_id, ul.created_at, ul.active,rl.name as role_name FROM user_login as ul
+				inner join public.role as rl on rl.id = ul.role_id order by created_at desc`
 	rows, err := r.DB.Query(query)
 	if err != nil {
 		return helper.CreateDynamicResponse("Error fetching users: "+err.Error(), false, nil, 500, nil), err
@@ -82,7 +83,7 @@ func (r *UserRepository) GetUsers() (map[string]interface{}, error) {
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		if err := rows.Scan(&user.UserID, &user.Name, &user.LoginID, &user.RoleID, &user.CreatedAt, &user.Active); err != nil {
+		if err := rows.Scan(&user.UserID, &user.Name, &user.LoginID, &user.RoleID, &user.CreatedAt, &user.Active, &user.RoleName); err != nil {
 			return helper.CreateDynamicResponse("Error scanning user: "+err.Error(), false, nil, 500, nil), err
 		}
 

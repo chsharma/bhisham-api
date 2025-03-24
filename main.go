@@ -37,17 +37,20 @@ func main() {
 	bhishamRepo := &repositories.BhishamRepository{DB: database}
 	userRepo := &repositories.UserRepository{DB: database}
 	dashboardRepo := &repositories.DashboardRepository{DB: database}
+	handheldRepo := &repositories.HandheldRepository{DB: database}
 
 	// Initialize services
 	bhishamService := &services.BhishamService{GameRepo: bhishamRepo}
 	userService := &services.UserService{UserRepo: userRepo}
 	dashboardService := &services.DashboardService{DashboardRepo: dashboardRepo}
+	handheldService := &services.HandheldService{HandheldRepo: handheldRepo}
 	// Initialize handlers
 	bhishamHandler := &handlers.BhishamHandler{BhishamService: bhishamService}
 	userHandler := &handlers.UserHandler{UserService: userService}
 	dashboardHandler := &handlers.DashboardHandler{DashboardService: dashboardService}
+	handheldHandler := &handlers.HandheldHandler{HandheldService: handheldService}
 
-	appRouter := router.NewRouter(bhishamHandler, userHandler, dashboardHandler)
+	appRouter := router.NewRouter(bhishamHandler, userHandler, dashboardHandler, handheldHandler)
 
 	mux := appRouter.RegisterRoutes()
 
