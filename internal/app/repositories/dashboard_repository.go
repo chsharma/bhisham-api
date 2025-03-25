@@ -128,6 +128,7 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 	return helper.CreateDynamicResponse("All kits fetched successfully", true, kits, 200, nil), nil
 }
 
+// remove kit no
 func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
 	query := `SELECT id, mc_no, cube_number, kitname, kit_no, batch_no_sr_no, 
                      sku_name, mfd, exp, manufactured_by, sku_qty, 
