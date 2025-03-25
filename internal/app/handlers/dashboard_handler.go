@@ -57,12 +57,7 @@ func (c *DashboardHandler) GetChildCube(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Call service layer
-	result, err := c.DashboardService.GetChildCube(bhishamID, motherCubeID)
-	if err != nil {
-		helper.SendResponse(w, http.StatusInternalServerError, nil, false, "Failed to fetch cubes", nil)
-		return
-	}
-
+	result, _ := c.DashboardService.GetChildCube(bhishamID, motherCubeID)
 	// Send final response
 	helper.SendFinalResponse(w, result)
 }
