@@ -63,12 +63,12 @@ func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]in
 	insertMappingQuery := `INSERT INTO bhisham_mapping (
         bhisham_id, serial_no, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
         item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, cc_epc, mc_epc, 
-        mc_name, no_of_item, is_cube, cube_number
+        mc_name, no_of_item, is_cube, cube_number, kit_slug, sku_slug 
     ) SELECT $1, $2, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
         item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, 
         'CA' || mc_no || $3 || '00000000000' || LPAD(cube_number::text, 2, '0'),  -- CC EPC
         'A0' || mc_no || $3 || '0000000000000',  -- MC EPC
-        mc_name, no_of_item, is_cube, cube_number 
+        mc_name, no_of_item, is_cube, cube_number , kit_slug, item_slug 
     FROM public.default_bhisham ORDER BY mc_no, cube_number;`
 
 	_, err = tx.Exec(insertMappingQuery, newID, bhisham.SerialNo, bhishamIdPadded)
@@ -131,7 +131,7 @@ func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map
 
 	query := `SELECT bhisham_id, serial_no, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, 
 	sku_code, item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, 
-	cc_epc, mc_epc, mc_name, no_of_item, is_cube, cube_number FROM bhisham_mapping WHERE bhisham_id=$1`
+	cc_epc, mc_epc, mc_name, no_of_item, is_cube, cube_number, kit_slug, sku_slug FROM bhisham_mapping WHERE bhisham_id=$1`
 
 	rows, err := r.DB.Query(query, BhishamID)
 	if err != nil {
@@ -149,7 +149,7 @@ func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map
 		var data models.BhishamMappingData
 		if err := rows.Scan(&data.BhishamID, &data.SerialNo, &data.MCNo, &data.CCNo, &data.CCName, &data.KitCode, &data.KitName, &data.NoOfKit,
 			&data.SKUCode, &data.ItemName, &data.BatchNoSrNo, &data.MFD, &data.EXP, &data.ManufacturedBy, &data.TotalQty,
-			&data.CCEPC, &data.MCEPC, &data.MCName, &data.NoOfItem, &data.IsCube, &data.CubeNumber); err != nil {
+			&data.CCEPC, &data.MCEPC, &data.MCName, &data.NoOfItem, &data.IsCube, &data.CubeNumber, &data.KitSlug, &data.SKUSlug); err != nil {
 
 			return helper.CreateDynamicResponse("Error  scanning row > "+err.Error(), false, nil, 200, nil), nil
 		}
@@ -164,8 +164,8 @@ func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map
 
 	insertQuery := `INSERT INTO bhisham_data 
 	(bhisham_id, mc_no, mc_name, mc_epc, cc_no, cc_name, cc_epc, kitcode, kit_no, kit_epc, kit_batch_no, 
-	kit_expiry, kit_qty, sku_code, sku_name, batch_no_sr_no, mfd, exp, manufactured_by, sku_qty, cube_number,kitname,no_of_kit) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`
+	kit_expiry, kit_qty, sku_code, sku_name, batch_no_sr_no, mfd, exp, manufactured_by, sku_qty, cube_number,kitname,no_of_kit,kit_slug,sku_slug) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`
 
 	// Use a transaction for batch insertion
 	tx, err := r.DB.Begin()
@@ -196,7 +196,7 @@ func (r *BhishamRepository) CreateBhishamData(BhishamID int, UserID string) (map
 								item.BhishamID, item.MCNo, item.MCName, item.MCEPC,
 								item.CCNo, item.CCName, item.CCEPC, item.KitCode, kitNo, GenerateKitEPC(BhishamID, item.MCNo, item.CubeNumber, kitNo),
 								item.BatchNoSrNo, minExpiry, item.NoOfKit, item.SKUCode, item.ItemName,
-								item.BatchNoSrNo, item.MFD, item.EXP, item.ManufacturedBy, item.TotalQty, item.CubeNumber, item.KitName, item.NoOfKit,
+								item.BatchNoSrNo, item.MFD, item.EXP, item.ManufacturedBy, item.TotalQty, item.CubeNumber, item.KitName, item.NoOfKit, item.KitSlug, item.SKUSlug,
 							)
 							if err != nil {
 								tx.Rollback()

@@ -74,6 +74,8 @@ type BhishamMappingData struct {
 	NoOfItem       int
 	IsCube         int
 	CubeNumber     int
+	KitSlug        string
+	SKUSlug        string
 }
 
 type GetBhishamID struct {
