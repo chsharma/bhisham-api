@@ -100,9 +100,9 @@ func (r *DashboardRepository) GetChildCube(BhishamID, MotherCubeID int) (map[str
 }
 
 func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
-	rows, err := r.DB.Query(`SELECT bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit ,COALESCE(kit_expiry, 'NA') AS kit_expiry, count(bhisham_id) as total, SUM(is_update) as total_update
+	rows, err := r.DB.Query(`SELECT bhisham_id, mc_no, cc_no, kitcode, kitname, kit_slug, no_of_kit ,COALESCE(kit_expiry, 'NA') AS kit_expiry, count(bhisham_id) as total, SUM(is_update) as total_update
                             FROM public.bhisham_mapping
-                            WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 group by bhisham_id, mc_no, cc_no, kitcode, kitname, no_of_kit, kit_expiry`,
+                            WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 group by bhisham_id, mc_no, cc_no, kitcode, kitname, kit_slug, no_of_kit, kit_expiry`,
 		BhishamID, MotherCubeID, CCNo)
 	if err != nil {
 		return helper.CreateDynamicResponse("Error fetching kits "+err.Error(), false, nil, 500, nil), err
@@ -113,7 +113,7 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 	for rows.Next() {
 		var kit models.BhishamKit
 		if err := rows.Scan(
-			&kit.BhishamID, &kit.MCNo, &kit.CCNo, &kit.KitCode, &kit.KitName, &kit.NoOfKit, &kit.KitExpiry, &kit.Total, &kit.TotalUpdate,
+			&kit.BhishamID, &kit.MCNo, &kit.CCNo, &kit.KitCode, &kit.KitName, &kit.KitSlug, &kit.NoOfKit, &kit.KitExpiry, &kit.Total, &kit.TotalUpdate,
 		); err != nil {
 			return helper.CreateDynamicResponse("Error scanning kits data "+err.Error(), false, nil, 500, nil), err
 		}
@@ -131,12 +131,12 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
 	query := `SELECT id, mc_no, cube_number, kitname, kit_no, batch_no_sr_no, 
                      sku_name, mfd, exp, manufactured_by, sku_qty, 
-                     is_update, update_time, updated_by, sku_code, kitcode
+                     is_update, update_time, updated_by, sku_code, kitcode, kit_slug, sku_slug
               FROM public.bhisham_data 
               WHERE bhisham_id = $1 
                 AND mc_no = $2 
                 AND cube_number = $3 
-                AND kitname = $4 
+                AND kit_slug = $4 
                 AND kit_no = 1`
 
 	rows, err := r.DB.Query(query, BhishamID, MotherCubeID, CCNo, KitName)
@@ -165,6 +165,8 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 			&kit.UpdateBy,
 			&kit.SKUCode,
 			&kit.KitCode,
+			&kit.KitSlug,
+			&kit.SKUSlug,
 		)
 		if err != nil {
 			return helper.CreateDynamicResponse("Error scanning items data "+err.Error(), false, nil, 500, nil), err
@@ -186,8 +188,8 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 }
 
 func (r *DashboardRepository) GetMappingKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
-	query := `SELECT id, mc_no, cube_number, kitname, 1 as kit_no, batch_no_sr_no, item_name as sku_name, mfd, exp, manufactured_by, no_of_item as sku_qty,is_update,update_time,updated_by FROM public.bhisham_mapping 
-			  WHERE bhisham_id=$1 AND mc_no=$2 AND cube_number=$3 and kitname=$4`
+	query := `SELECT id, mc_no, cube_number, kitname, 1 as kit_no, batch_no_sr_no, item_name as sku_name, mfd, exp, manufactured_by, no_of_item as sku_qty,is_update,update_time,updated_by,sku_code, kitcode, kit_slug, sku_slug FROM public.bhisham_mapping 
+			  WHERE bhisham_id=$1 AND mc_no=$2 AND cube_number=$3 and kit_slug=$4`
 
 	rows, err := r.DB.Query(query, BhishamID, MotherCubeID, CCNo, KitName)
 	if err != nil {
@@ -200,7 +202,9 @@ func (r *DashboardRepository) GetMappingKitItems(BhishamID, MotherCubeID, CCNo i
 		var kit models.KitItems
 		if err := rows.Scan(
 			&kit.ID, &kit.MCNo, &kit.CubeNumber, &kit.KitName, &kit.KitNo,
-			&kit.BatchNoSrNo, &kit.SKUName, &kit.Mfd, &kit.Exp, &kit.ManufacturedBy, &kit.SKUQty, &kit.IsUpdate, &kit.UpdateTime, &kit.UpdateBy,
+			&kit.BatchNoSrNo, &kit.SKUName, &kit.Mfd, &kit.Exp, &kit.ManufacturedBy, &kit.SKUQty, &kit.IsUpdate, &kit.UpdateTime, &kit.UpdateBy, &kit.SKUCode, &kit.KitCode,
+			&kit.KitSlug,
+			&kit.SKUSlug,
 		); err != nil {
 			return helper.CreateDynamicResponse("Error scanning items data", false, nil, 500, nil), err
 		}

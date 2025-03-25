@@ -34,6 +34,7 @@ type BhishamKit struct {
 	CCNo        string `json:"cc_no"`
 	KitCode     string `json:"kitcode"`
 	KitName     string `json:"kitname"`
+	KitSlug     string `json:"kit_slug"`
 	NoOfKit     int    `json:"no_of_kit"`
 	KitExpiry   string `json:"kit_expiry"`
 	Total       int    `json:"total_item"`
@@ -84,9 +85,9 @@ type UpdateBhishamData struct {
 	MCNo       int    `json:"mc_no"`
 	CubeNumber int    `json:"cube_number"`
 	KitCode    string `json:"kit_code"`
-	KitName    string `json:"kit_name"`
+	KitSlug    string `json:"kit_slug"`
 	SkuCode    string `json:"sku_code"`
-	SkuName    string `json:"sku_name"`
+	SkuSlug    string `json:"sku_slug"`
 	BatchCode  string `json:"batch_code"`
 	MFD        string `json:"mfd"`
 	EXP        string `json:"exp"`
@@ -100,10 +101,12 @@ type KitItems struct {
 	CubeNumber     int     `json:"cube_number"`
 	KitCode        string  `json:"kit_code"`
 	KitName        string  `json:"kit_name"`
+	KitSlug        string  `json:"kit_slug"`
 	KitNo          int     `json:"kit_no"`
 	BatchNoSrNo    string  `json:"batch_no_sr_no"`
 	SKUName        string  `json:"sku_name"`
 	SKUCode        string  `json:"sku_code"`
+	SKUSlug        string  `json:"sku_slug"`
 	Mfd            string  `json:"mfd"`
 	Exp            string  `json:"exp"`
 	ManufacturedBy string  `json:"manufactured_by"`

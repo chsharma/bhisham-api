@@ -111,7 +111,7 @@ func (c *DashboardHandler) GetKitItems(w http.ResponseWriter, r *http.Request) {
 	bhishamIDStr := r.URL.Query().Get("bhishamid")
 	motherCubeIDStr := r.URL.Query().Get("mcno")
 	cubeNumberStr := r.URL.Query().Get("ccno")
-	cubeKitNameStr := r.URL.Query().Get("kitname")
+	cubeKitNameStr := r.URL.Query().Get("kitslug")
 
 	// Validate required parameters
 	if bhishamIDStr == "" || motherCubeIDStr == "" || cubeNumberStr == "" || cubeKitNameStr == "" {
@@ -145,7 +145,7 @@ func (c *DashboardHandler) GetMappingKitItems(w http.ResponseWriter, r *http.Req
 	bhishamIDStr := r.URL.Query().Get("bhishamid")
 	motherCubeIDStr := r.URL.Query().Get("mcno")
 	cubeNumberStr := r.URL.Query().Get("ccno")
-	cubeKitNameStr := r.URL.Query().Get("kitname")
+	cubeKitNameStr := r.URL.Query().Get("kitslug")
 
 	// Validate required parameters
 	if bhishamIDStr == "" || motherCubeIDStr == "" || cubeNumberStr == "" || cubeKitNameStr == "" {
