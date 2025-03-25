@@ -131,7 +131,7 @@ func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (m
 func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, KitName string) (map[string]interface{}, error) {
 	query := `SELECT id, mc_no, cube_number, kitname, kit_no, batch_no_sr_no, 
                      sku_name, mfd, exp, manufactured_by, sku_qty, 
-                     is_update, update_time, updated_by
+                     is_update, update_time, updated_by, sku_code, kitcode
               FROM public.bhisham_data 
               WHERE bhisham_id = $1 
                 AND mc_no = $2 
@@ -163,9 +163,11 @@ func (r *DashboardRepository) GetKitItems(BhishamID, MotherCubeID, CCNo int, Kit
 			&kit.IsUpdate,
 			&kit.UpdateTime,
 			&kit.UpdateBy,
+			&kit.SKUCode,
+			&kit.KitCode,
 		)
 		if err != nil {
-			return helper.CreateDynamicResponse("Error scanning items data", false, nil, 500, nil), err
+			return helper.CreateDynamicResponse("Error scanning items data "+err.Error(), false, nil, 500, nil), err
 		}
 		kits = append(kits, kit)
 	}

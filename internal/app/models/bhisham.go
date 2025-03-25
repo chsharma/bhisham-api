@@ -83,7 +83,10 @@ type UpdateBhishamData struct {
 	BhishamID  int    `json:"bhisham_id"`
 	MCNo       int    `json:"mc_no"`
 	CubeNumber int    `json:"cube_number"`
+	KitCode    string `json:"kit_code"`
 	KitName    string `json:"kit_name"`
+	SkuCode    string `json:"sku_code"`
+	SkuName    string `json:"sku_name"`
 	BatchCode  string `json:"batch_code"`
 	MFD        string `json:"mfd"`
 	EXP        string `json:"exp"`
@@ -95,17 +98,19 @@ type KitItems struct {
 	ID             int     `json:"id"`
 	MCNo           int     `json:"mc_no"`
 	CubeNumber     int     `json:"cube_number"`
+	KitCode        string  `json:"kit_code"`
 	KitName        string  `json:"kit_name"`
 	KitNo          int     `json:"kit_no"`
 	BatchNoSrNo    string  `json:"batch_no_sr_no"`
 	SKUName        string  `json:"sku_name"`
+	SKUCode        string  `json:"sku_code"`
 	Mfd            string  `json:"mfd"`
 	Exp            string  `json:"exp"`
 	ManufacturedBy string  `json:"manufactured_by"`
 	SKUQty         int     `json:"sku_qty"`
 	IsUpdate       *string `json:"is_update"`
 	UpdateTime     *string `json:"update_time"`
-	UpdateBy       *int    `json:"updated_by"`
+	UpdateBy       *string `json:"updated_by"`
 }
 
 type BhishamData struct {
@@ -135,7 +140,7 @@ type BhishamData struct {
 	NoOfKit        int     `json:"no_of_kit"`
 	IsUpdate       *string `json:"is_update"`
 	UpdateTime     *string `json:"update_time"`
-	UpdateBy       *int    `json:"updated_by"`
+	UpdateBy       *string `json:"updated_by"`
 }
 
 type UpdateType struct {

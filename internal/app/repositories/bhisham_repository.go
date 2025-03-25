@@ -17,85 +17,6 @@ type BhishamRepository struct {
 	DB *sql.DB
 }
 
-func (r *BhishamRepository) oldCreateBhisham(bhisham models.Bhisham) (map[string]interface{}, error) {
-	// Validate SerialNo
-	if bhisham.SerialNo == "" {
-		return helper.CreateDynamicResponse("Serial No is required", false, nil, 400, nil), errors.New("serial_no cannot be empty")
-	}
-
-	// Begin Transaction
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return helper.CreateDynamicResponse("Failed to start transaction", false, nil, 500, nil), err
-	}
-
-	// Rollback in case of failure
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Check if SerialNo already exists
-	var exists bool
-	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM bhisham WHERE serial_no = $1)", bhisham.SerialNo).Scan(&exists)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error checking existing Serial No", false, nil, 500, nil), err
-	}
-	if exists {
-		return helper.CreateDynamicResponse("Serial No already exists", false, nil, 400, nil), errors.New("duplicate serial_no")
-	}
-
-	// Insert New Record and Return ID
-	var newID int
-	insertBhishamQuery := `INSERT INTO bhisham (serial_no, bhisham_name, created_by, created_at)
-	                       VALUES ($1, $2, $3, NOW()) RETURNING id`
-
-	err = tx.QueryRow(insertBhishamQuery, bhisham.SerialNo, bhisham.BhishamName, bhisham.CreatedBy).Scan(&newID)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error Creating Bhisham", false, nil, 400, nil), err
-	}
-
-	// Insert into bhisham_mapping from default_bhisham
-	insertMappingQuery := `INSERT INTO bhisham_mapping (
-		bhisham_id, serial_no, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
-		item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, cc_epc, mc_epc, 
-		mc_name, no_of_item, is_cube, cube_number
-	) SELECT $1, $2, mc_no, cc_no, cc_name, kitcode, kitname, no_of_kit, sku_code, 
-		item_name, batch_no_sr_no, mfd, exp, manufactured_by, total_qty, cc_epc, mc_epc, 
-		mc_name, no_of_item, is_cube, cube_number 
-	FROM public.default_bhisham ORDER BY mc_no, cube_number;`
-
-	_, err = tx.Exec(insertMappingQuery, newID, bhisham.SerialNo)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error inserting into Bhisham Mapping", false, nil, 400, nil), err
-	}
-
-	hashedPwd, err := bcrypt.GenerateFromPassword([]byte("00000"), bcrypt.DefaultCost)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error hashing password", false, nil, 500, nil), err
-	}
-
-	var user_id = utils.GenerateId()
-
-	query := `INSERT INTO user_login (user_id, name, login_id, pwd, role_id, created_at) 
-              VALUES ($1, $2, $3, $4, $5, NOW())`
-
-	_, err = tx.Exec(query, user_id, bhisham.BhishamName, bhisham.SerialNo, string(hashedPwd), 3)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error creating user", false, nil, 500, nil), err
-	}
-
-	// Commit Transaction
-	err = tx.Commit()
-	if err != nil {
-		return helper.CreateDynamicResponse("Transaction commit failed", false, nil, 500, nil), err
-	}
-
-	// Success Response with Inserted ID
-	return helper.CreateDynamicResponse("Bhisham Created Successfully", true, map[string]interface{}{"id": newID}, 200, nil), nil
-}
-
 func (r *BhishamRepository) CreateBhisham(bhisham models.Bhisham) (map[string]interface{}, error) {
 	// Validate SerialNo
 	if bhisham.SerialNo == "" {
@@ -313,20 +234,20 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 	case 1:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
 						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
-						  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
+						  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
 						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
-						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, UserID}
+						  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.SkuCode, obj.MCNo, UserID}
 
 	case 2:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
 						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
-						  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
+						  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6 AND cube_number=$7`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
 						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
-						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
+						  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.SkuCode, obj.MCNo, obj.CubeNumber, UserID}
 
 	case 3:
 		updateBhishamQuery = `UPDATE public.bhisham_data 
@@ -334,9 +255,9 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 						  WHERE id=$4`
 		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
 						  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
-						  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
+						  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6 AND cube_number=$7`
 		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID, UserID}
-		ParamsMapping = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
+		ParamsMapping = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.SkuCode, obj.MCNo, obj.CubeNumber, UserID}
 
 	default:
 		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
@@ -419,63 +340,6 @@ func (r *BhishamRepository) UpdateBhishamData(obj models.UpdateBhishamData, User
 	return helper.CreateDynamicResponse("Bhisham Updated Successfully", true, nil, 200, nil), nil
 }
 
-func (r *BhishamRepository) oldUpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
-	var updateBhishamQuery string
-	var queryParams []interface{}
-
-	// Determine the update query based on UpdateType
-	switch obj.UpdateType {
-	case 1:
-		updateBhishamQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo}
-
-	case 2:
-		updateBhishamQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE bhisham_id=$4 AND sku_name=$5 AND mc_no=$6 AND cube_number=$7`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber}
-
-	case 3:
-		updateBhishamQuery = `UPDATE public.bhisham_mapping 
-							  SET mfd=$1, exp=$2, batch_no_sr_no=$3 
-							  WHERE id=$4`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.ID}
-
-	default:
-		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
-	}
-
-	// Execute Update Query (Exec instead of QueryRow)
-	res, err := r.DB.Exec(updateBhishamQuery, queryParams...)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error updating Bhisham data: "+err.Error(), false, nil, 400, nil), err
-	}
-
-	// Check if any rows were affected
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return helper.CreateDynamicResponse("Error fetching update count: "+err.Error(), false, nil, 400, nil), err
-	}
-	if rowsAffected == 0 {
-		return helper.CreateDynamicResponse("No records updated", false, nil, 200, nil), nil
-	}
-
-	// Log update in `update_bhisham_data` table
-	logQuery := `INSERT INTO public.update_bhisham_data 
-				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
-
-	_, err = r.DB.Exec(logQuery, logParams...)
-	if err != nil {
-		return helper.CreateDynamicResponse("Error logging update: "+err.Error(), false, nil, 400, nil), err
-	}
-
-	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil
-}
-
 func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
 	var updateBhishamQuery string
 	var queryParams []interface{}
@@ -491,14 +355,14 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 	case 1:
 		updateBhishamQuery = `UPDATE public.bhisham_mapping 
 					  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$7
-					  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, UserID}
+					  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.SkuCode, obj.MCNo, UserID}
 
 	case 2:
 		updateBhishamQuery = `UPDATE public.bhisham_mapping 
 					  SET mfd=$1, exp=$2, batch_no_sr_no=$3, is_update=1, update_time=NOW(), updated_by=$8
-					  WHERE bhisham_id=$4 AND item_name=$5 AND mc_no=$6 AND cube_number=$7`
-		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.KitName, obj.MCNo, obj.CubeNumber, UserID}
+					  WHERE bhisham_id=$4 AND sku_code=$5 AND mc_no=$6 AND cube_number=$7`
+		queryParams = []interface{}{obj.MFD, obj.EXP, obj.BatchCode, obj.BhishamID, obj.SkuCode, obj.MCNo, obj.CubeNumber, UserID}
 
 	case 3:
 		updateBhishamQuery = `UPDATE public.bhisham_mapping 
@@ -552,7 +416,7 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 	logQuery := `INSERT INTO public.update_bhisham_data 
 				 (bhisham_id, mc_no, cube_number, kit_name, batch_code, mfd, exp, update_type_id, created_by) 
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.KitName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
+	logParams := []interface{}{obj.BhishamID, obj.MCNo, obj.CubeNumber, obj.SkuName, obj.BatchCode, obj.MFD, obj.EXP, obj.UpdateType, UserID}
 
 	_, err = tx.Exec(logQuery, logParams...)
 	if err != nil {
