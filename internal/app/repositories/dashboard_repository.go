@@ -101,7 +101,7 @@ func (r *DashboardRepository) GetChildCube(BhishamID, MotherCubeID int) (map[str
 
 func (r *DashboardRepository) GetChildKits(BhishamID, MotherCubeID, CCNo int) (map[string]interface{}, error) {
 	rows, err := r.DB.Query(`SELECT bhisham_id, mc_no, cc_no, kitcode, kitname, kit_slug, no_of_kit ,COALESCE(kit_expiry, 'NA') AS kit_expiry, count(bhisham_id) as total, SUM(is_update) as total_update
-                            FROM public.bhisham_data
+                            FROM public.bhisham_mapping
                             WHERE is_cube = 1 AND bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 group by bhisham_id, mc_no, cc_no, kitcode, kitname, kit_slug, no_of_kit, kit_expiry`,
 		BhishamID, MotherCubeID, CCNo)
 	if err != nil {
