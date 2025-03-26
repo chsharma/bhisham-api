@@ -45,6 +45,9 @@ func (r *Router) RegisterRoutes() *http.ServeMux {
 	mux.Handle(url+"/bhisham/update-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.UpdateBhishamData)))
 	mux.Handle(url+"/bhisham/update-mapping-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.UpdateBhishamMapping)))
 
+	mux.Handle(url+"/bhisham/mark-update-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.MarkUpdateBhishamData)))
+	mux.Handle(url+"/bhisham/mark-update-mapping-data", middleware.JWTAuthentication(http.HandlerFunc(r.BhishamHandler.MarkUpdateBhishamMapping)))
+
 	// Dashboard Routes
 	mux.Handle(url+"/dashboard/get-stats", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetDashboardStats)))
 	mux.Handle(url+"/dashboard/get-bhisham", middleware.JWTAuthentication(http.HandlerFunc(r.DashboardHandler.GetBhisham)))

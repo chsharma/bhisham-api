@@ -432,6 +432,139 @@ func (r *BhishamRepository) UpdateBhishamMapping(obj models.UpdateBhishamData, U
 	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil
 }
 
+func (r *BhishamRepository) MarkUpdateBhishamData(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	var updateBhishamQuery, updateBhishamMappingQuery string
+	var queryParams []interface{}
+	var ParamsMapping []interface{}
+
+	// Determine the update queries based on UpdateType
+	// Determine update queries
+	switch obj.UpdateType {
+	case 1:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4`
+		queryParams = []interface{}{UserID, obj.BhishamID, obj.SkuSlug, obj.MCNo}
+
+	case 2:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4 AND cube_number=$5`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4 AND cube_number=$5`
+		queryParams = []interface{}{UserID, obj.BhishamID, obj.SkuSlug, obj.MCNo, obj.CubeNumber}
+
+	case 3:
+		updateBhishamQuery = `UPDATE public.bhisham_data 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE id=$2`
+		updateBhishamMappingQuery = `UPDATE public.bhisham_mapping 
+						  SET is_update=1, update_time=NOW(), updated_by=$1
+						  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4 AND cube_number=$5`
+		queryParams = []interface{}{UserID, obj.ID}
+		ParamsMapping = []interface{}{UserID, obj.BhishamID, obj.SkuSlug, obj.MCNo, obj.CubeNumber}
+
+	default:
+		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
+	}
+
+	// Start a transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Transaction start error: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	// Execute bhisham_data update
+	if err := executeUpdateQuery(tx, updateBhishamQuery, queryParams); err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error updating bhisham_data: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Execute bhisham_mapping update (use correct params for type 3)
+	if obj.UpdateType == 3 {
+		if err := executeUpdateQuery(tx, updateBhishamMappingQuery, ParamsMapping); err != nil {
+			tx.Rollback()
+			return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+		}
+	} else {
+		if err := executeUpdateQuery(tx, updateBhishamMappingQuery, queryParams); err != nil {
+			tx.Rollback()
+			return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+		}
+	}
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return helper.CreateDynamicResponse("Transaction commit error: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	return helper.CreateDynamicResponse("Bhisham Updated Successfully", true, nil, 200, nil), nil
+}
+
+func (r *BhishamRepository) MarkUpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	var updateBhishamQuery string
+	var queryParams []interface{}
+
+	// Start transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return helper.CreateDynamicResponse("Failed to start transaction: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	// Determine the update queries based on UpdateType
+	switch obj.UpdateType {
+	case 1:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					   SET is_update=1, update_time=NOW(), updated_by=$1
+					  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4`
+		queryParams = []interface{}{UserID, obj.BhishamID, obj.SkuCode, obj.MCNo}
+
+	case 2:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					  SET is_update=1, update_time=NOW(), updated_by=$1
+					  WHERE bhisham_id=$2 AND sku_slug=$3 AND mc_no=$4 AND cube_number=$5`
+		queryParams = []interface{}{UserID, obj.BhishamID, obj.SkuSlug, obj.MCNo, obj.CubeNumber}
+
+	case 3:
+		updateBhishamQuery = `UPDATE public.bhisham_mapping 
+					  SET is_update=1, update_time=NOW(), updated_by=$1
+					  WHERE id=$2`
+		queryParams = []interface{}{UserID, obj.ID}
+
+	default:
+		tx.Rollback() // Rollback transaction on invalid update type
+		return helper.CreateDynamicResponse("Invalid Update Type", false, nil, 400, nil), fmt.Errorf("invalid update type: %d", obj.UpdateType)
+	}
+
+	// Execute bhisham_mapping update within the transaction
+	res, err := tx.Exec(updateBhishamQuery, queryParams...)
+	if err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error updating bhisham_mapping: "+err.Error(), false, nil, 400, nil), err
+	}
+
+	// Check if any rows were affected
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("Error fetching update count: "+err.Error(), false, nil, 400, nil), err
+	}
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return helper.CreateDynamicResponse("No records updated", false, nil, 200, nil), nil
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return helper.CreateDynamicResponse("Transaction commit failed: "+err.Error(), false, nil, 500, nil), err
+	}
+
+	return helper.CreateDynamicResponse(fmt.Sprintf("Bhisham Updated Successfully (%d rows affected)", rowsAffected), true, nil, 200, nil), nil
+}
+
 func FindMinExpiry(items []models.BhishamMappingData) string {
 	var minExpiry string
 	var minTime time.Time

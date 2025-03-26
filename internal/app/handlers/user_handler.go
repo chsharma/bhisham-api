@@ -103,8 +103,8 @@ func (h *UserHandler) AuthenticateUser(w http.ResponseWriter, r *http.Request) {
 		helper.SendResponse(w, http.StatusBadRequest, "", false, "LoginID is required", nil)
 		return
 	}
-	if strings.TrimSpace(creds.Password) == "" || len(creds.Password) < 6 {
-		helper.SendResponse(w, http.StatusBadRequest, "", false, "Password must be at least 6 characters long", nil)
+	if strings.TrimSpace(creds.Password) == "" || len(creds.Password) < 5 {
+		helper.SendResponse(w, http.StatusBadRequest, "", false, "Password must be at least 5 characters long", nil)
 		return
 	}
 	// Call Service to Create User

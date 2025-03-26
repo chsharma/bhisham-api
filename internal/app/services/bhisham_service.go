@@ -22,6 +22,14 @@ func (s *BhishamService) UpdateBhishamData(obj models.UpdateBhishamData, UserID 
 	return s.GameRepo.UpdateBhishamData(obj, UserID)
 }
 
+func (s *BhishamService) MarkUpdateBhishamData(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.MarkUpdateBhishamData(obj, UserID)
+}
+
 func (s *BhishamService) UpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
 	return s.GameRepo.UpdateBhishamMapping(obj, UserID)
+}
+
+func (s *BhishamService) MarkUpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.MarkUpdateBhishamMapping(obj, UserID)
 }
