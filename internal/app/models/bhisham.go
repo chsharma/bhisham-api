@@ -3,18 +3,21 @@ package models
 import "time"
 
 type Bhisham struct {
-	ID           int        `json:"id"`
-	SerialNo     string     `json:"serial_no"`
-	BhishamName  *string    `json:"bhisham_name"`
-	CreatedBy    *string    `json:"created_by"`
-	CreatedAt    *time.Time `json:"created_at"`
-	IsComplete   *int       `json:"is_complete"`
-	CompleteBy   *string    `json:"complete_by"`
-	CompleteTime *string    `json:"complete_time"`
-	IsHHSynch    *int       `json:"is_hh_synch"`
-	HHSerial     *string    `json:"hh_serial"`
-	HHSynchTime  *string    `json:"hh_synch_time"`
-	HHSynchCount *int       `json:"hh_synch_count"`
+	ID            int        `json:"id"`
+	SerialNo      string     `json:"serial_no"`
+	BhishamName   *string    `json:"bhisham_name"`
+	CreatedBy     *string    `json:"created_by"`
+	CreatedAt     *time.Time `json:"created_at"`
+	IsComplete    *int       `json:"is_complete"`
+	CompleteBy    *string    `json:"complete_by"`
+	CompleteTime  *string    `json:"complete_time"`
+	IsHHSynch     *int       `json:"is_hh_synch"`
+	HHSerial      *string    `json:"hh_serial"`
+	HHSynchTime   *string    `json:"hh_synch_time"`
+	HHSynchCount  *int       `json:"hh_synch_count"`
+	IsBhishmClose *int       `json:"is_bhisham_close"`
+	CloseBy       *string    `json:"close_by"`
+	CloseTime     *string    `json:"close_time"`
 }
 
 type BhishamMapping struct {
@@ -82,6 +85,11 @@ type GetBhishamID struct {
 	BhishamID int `json:"bhisham_id"`
 }
 
+type ItemID struct {
+	ItemID      int `json:"id"`
+	DeleteTypID int `json:"delete_type_id"`
+}
+
 type UpdateBhishamData struct {
 	BhishamID  int    `json:"bhisham_id"`
 	MCNo       int    `json:"mc_no"`
@@ -113,7 +121,7 @@ type KitItems struct {
 	Exp            string  `json:"exp"`
 	ManufacturedBy string  `json:"manufactured_by"`
 	SKUQty         int     `json:"sku_qty"`
-	IsUpdate       *string `json:"is_update"`
+	IsUpdate       *int    `json:"is_update"`
 	UpdateTime     *string `json:"update_time"`
 	UpdateBy       *string `json:"updated_by"`
 }
@@ -143,7 +151,7 @@ type BhishamData struct {
 	CubeNumber     int     `json:"cube_number"`
 	KitName        string  `json:"kitname"`
 	NoOfKit        int     `json:"no_of_kit"`
-	IsUpdate       *string `json:"is_update"`
+	IsUpdate       int     `json:"is_update"`
 	UpdateTime     *string `json:"update_time"`
 	UpdateBy       *string `json:"updated_by"`
 }
@@ -170,4 +178,36 @@ type ReportBhishamMapping struct {
 	Exp            string `json:"exp"`
 	ManufacturedBy string `json:"manufactured_by"`
 	NoOfItem       int    `json:"no_of_item"`
+}
+
+type BhishamDataInsert struct {
+	ID             int        `json:"id"`
+	BhishamID      *int       `json:"bhisham_id"`
+	McNo           *int       `json:"mc_no"`
+	McName         *string    `json:"mc_name"`
+	McEpc          *string    `json:"mc_epc"`
+	CcNo           *string    `json:"cc_no"`
+	CcName         *string    `json:"cc_name"`
+	CcEpc          *string    `json:"cc_epc"`
+	KitCode        *string    `json:"kitcode"`
+	KitNo          *int       `json:"kit_no"`
+	KitEpc         *string    `json:"kit_epc"`
+	KitBatchNo     *string    `json:"kit_batch_no"`
+	KitExpiry      *string    `json:"kit_expiry"`
+	KitQty         *int       `json:"kit_qty"`
+	SkuCode        *string    `json:"sku_code"`
+	SkuName        *string    `json:"sku_name"`
+	BatchNoSrNo    *string    `json:"batch_no_sr_no"`
+	Mfd            *string    `json:"mfd"`
+	Exp            *string    `json:"exp"`
+	ManufacturedBy *string    `json:"manufactured_by"`
+	SkuQty         *int       `json:"sku_qty"`
+	CubeNumber     *int       `json:"cube_number"`
+	KitName        *string    `json:"kitname"`
+	NoOfKit        *int       `json:"no_of_kit"`
+	IsUpdate       int        `json:"is_update"`
+	UpdateTime     *time.Time `json:"update_time"`
+	UpdatedBy      *string    `json:"updated_by"`
+	KitSlug        *string    `json:"kit_slug"`
+	SkuSlug        string     `json:"sku_slug"`
 }

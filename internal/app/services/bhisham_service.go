@@ -33,3 +33,15 @@ func (s *BhishamService) UpdateBhishamMapping(obj models.UpdateBhishamData, User
 func (s *BhishamService) MarkUpdateBhishamMapping(obj models.UpdateBhishamData, UserID string) (map[string]interface{}, error) {
 	return s.GameRepo.MarkUpdateBhishamMapping(obj, UserID)
 }
+
+func (s *BhishamService) AddItemData(obj models.KitItems) (map[string]interface{}, error) {
+	return s.GameRepo.AddItemData(obj)
+}
+
+func (s *BhishamService) DeleteItemData(id, delete_typeid int) (map[string]interface{}, error) {
+	return s.GameRepo.DeleteItemData(id, delete_typeid)
+}
+
+func (s *BhishamService) CloseBhisham(id int, UserID string) (map[string]interface{}, error) {
+	return s.GameRepo.CloseBhisham(id, UserID)
+}

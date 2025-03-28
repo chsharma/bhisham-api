@@ -49,7 +49,7 @@ func (r *DashboardRepository) GetDashboardStats() (map[string]interface{}, error
 
 func (r *DashboardRepository) GetBhisham() (map[string]interface{}, error) {
 
-	rows, err := r.DB.Query(`SELECT id, serial_no, bhisham_name, created_by, created_at, is_complete, complete_by, complete_time, is_hh_synch,hh_serial,hh_synch_time,hh_synch_count FROM public.bhisham order by id desc`)
+	rows, err := r.DB.Query(`SELECT id, serial_no, bhisham_name, created_by, created_at, is_complete, complete_by, complete_time, is_hh_synch,hh_serial,hh_synch_time,hh_synch_count, is_bhisham_close, close_by, close_time FROM public.bhisham order by id desc`)
 	if err != nil {
 		return helper.CreateDynamicResponse("Error fetching bhishams", false, nil, 500, nil), err
 	}
@@ -60,7 +60,7 @@ func (r *DashboardRepository) GetBhisham() (map[string]interface{}, error) {
 		var bh models.Bhisham
 		if err := rows.Scan(
 			&bh.ID, &bh.SerialNo, &bh.BhishamName, &bh.CreatedBy, &bh.CreatedAt, &bh.IsComplete,
-			&bh.CompleteBy, &bh.CompleteTime, &bh.IsHHSynch, &bh.HHSerial, &bh.HHSynchTime, &bh.HHSynchCount,
+			&bh.CompleteBy, &bh.CompleteTime, &bh.IsHHSynch, &bh.HHSerial, &bh.HHSynchTime, &bh.HHSynchCount, &bh.IsBhishmClose, &bh.CloseBy, &bh.CloseTime,
 		); err != nil {
 			return helper.CreateDynamicResponse("Error scanning bhisham data", false, nil, 500, nil), err
 		}

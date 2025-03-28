@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -677,4 +678,122 @@ func executeUpdateQuery(tx *sql.Tx, query string, params []interface{}) error {
 		return fmt.Errorf("no records updated")
 	}
 	return nil
+}
+
+func (r *BhishamRepository) AddItemData(Item models.KitItems) (map[string]interface{}, error) {
+	SkuSlug := GenerateSlug(Item.SKUName)
+
+	// Step 1: Check if the SKU slug already exists
+	var slugExists bool
+	checkSlugQuery := `SELECT EXISTS (SELECT 1 FROM public.bhisham_data WHERE sku_slug = $1)`
+	err := r.DB.QueryRow(checkSlugQuery, SkuSlug).Scan(&slugExists)
+	if err != nil {
+		return helper.CreateDynamicResponse("Failed to check SKU slug", false, nil, 500, nil), err
+	}
+	if slugExists {
+		return helper.CreateDynamicResponse("SKU Slug already exists", false, nil, 400, nil), nil
+	}
+
+	// Step 2: Fetch the existing row if available
+	query := `SELECT bhisham_id, mc_no, mc_name, mc_epc, cc_no, cc_name, cc_epc, kitcode, 
+                     kit_no, kit_epc, kit_batch_no, kit_expiry, kit_qty, sku_code, sku_name, 
+                     batch_no_sr_no, mfd, exp, manufactured_by, sku_qty, cube_number, kitname, 
+                     no_of_kit, is_update, update_time, updated_by, kit_slug, sku_slug 
+              FROM public.bhisham_data 
+              WHERE bhisham_id = $1 AND mc_no = $2 AND cube_number = $3 AND kit_slug = $4 
+              LIMIT 1`
+
+	var existingData models.BhishamDataInsert
+
+	err = r.DB.QueryRow(query, Item.ID, Item.MCNo, Item.CubeNumber, Item.KitSlug).Scan(
+		&existingData.BhishamID, &existingData.McNo, &existingData.McName, &existingData.McEpc,
+		&existingData.CcNo, &existingData.CcName, &existingData.CcEpc, &existingData.KitCode, &existingData.KitNo,
+		&existingData.KitEpc, &existingData.KitBatchNo, &existingData.KitExpiry, &existingData.KitQty,
+		&existingData.SkuCode, &existingData.SkuName, &existingData.BatchNoSrNo, &existingData.Mfd, &existingData.Exp,
+		&existingData.ManufacturedBy, &existingData.SkuQty, &existingData.CubeNumber, &existingData.KitName,
+		&existingData.NoOfKit, &existingData.IsUpdate, &existingData.UpdateTime, &existingData.UpdatedBy,
+		&existingData.KitSlug, &existingData.SkuSlug,
+	)
+
+	// If an error occurs other than "no rows", return an error
+	if err != nil && err != sql.ErrNoRows {
+		return helper.CreateDynamicResponse("Failed to scan item", false, nil, 500, nil), err
+	}
+
+	// If no existing data is found, return an error
+	if err == sql.ErrNoRows {
+		return helper.CreateDynamicResponse("No existing data found to replicate", false, nil, 400, nil), nil
+	}
+
+	// Step 3: Set up the new insert data, keeping old values where necessary
+	existingData.BatchNoSrNo = &Item.BatchNoSrNo
+	existingData.SkuName = &Item.SKUName
+	existingData.SkuCode = &Item.SKUCode
+	existingData.SkuSlug = SkuSlug
+	existingData.Mfd = &Item.Mfd
+	existingData.Exp = &Item.Exp
+	existingData.ManufacturedBy = &Item.ManufacturedBy
+	existingData.SkuQty = &Item.SKUQty
+	existingData.IsUpdate = 0
+
+	// Step 4: Insert the new replicated row with the updated fields
+	var newID int
+	insertQuery := `
+        INSERT INTO public.bhisham_data (
+            bhisham_id, mc_no, mc_name, mc_epc, cc_no, cc_name, cc_epc, kitcode, kit_no, 
+            kit_epc, kit_batch_no, kit_expiry, kit_qty, sku_code, sku_name, batch_no_sr_no, 
+            mfd, exp, manufactured_by, sku_qty, cube_number, kitname, no_of_kit, 
+            is_update, update_time, updated_by, kit_slug, sku_slug
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, 
+            $10, $11, $12, $13, $14, $15, $16, 
+            $17, $18, $19, $20, $21, $22, $23, 
+            $24, $25, $26, $27, $28
+        ) RETURNING id`
+
+	err = r.DB.QueryRow(insertQuery,
+		existingData.BhishamID, existingData.McNo, existingData.McName, existingData.McEpc,
+		existingData.CcNo, existingData.CcName, existingData.CcEpc, existingData.KitCode, existingData.KitNo,
+		existingData.KitEpc, existingData.KitBatchNo, existingData.KitExpiry, existingData.KitQty,
+		existingData.SkuCode, existingData.SkuName, existingData.BatchNoSrNo, existingData.Mfd, existingData.Exp,
+		existingData.ManufacturedBy, existingData.SkuQty, existingData.CubeNumber, existingData.KitName,
+		existingData.NoOfKit, existingData.IsUpdate, existingData.UpdateTime, existingData.UpdatedBy,
+		existingData.KitSlug, existingData.SkuSlug,
+	).Scan(&newID)
+
+	if err != nil {
+		return helper.CreateDynamicResponse("Failed to insert item", false, nil, 500, nil), err
+	}
+
+	// Success response
+	return helper.CreateDynamicResponse("Bhisham Data Replicated and Inserted Successfully", true, map[string]interface{}{"id": newID}, 200, nil), nil
+}
+
+func (r *BhishamRepository) DeleteItemData(id, delete_typeid int) (map[string]interface{}, error) {
+	query := `DELETE FROM public.bhisham_data WHERE id = $1`
+
+	_, err := r.DB.Exec(query, id)
+	if err != nil && err != sql.ErrNoRows {
+		return helper.CreateDynamicResponse("Failed delete item", false, nil, 500, nil), err
+	}
+	// Success response
+	return helper.CreateDynamicResponse("Bhisham Delete Successfully", true, nil, 200, nil), nil
+}
+
+func (r *BhishamRepository) CloseBhisham(bhisham_id int, UserID string) (map[string]interface{}, error) {
+	query := `UPDATE FROM public.bhisham_data SET is_bhisham_close=1, close_by=$1,close_time=NOW() WHERE id = $2`
+
+	_, err := r.DB.Exec(query, UserID, bhisham_id)
+	if err != nil && err != sql.ErrNoRows {
+		return helper.CreateDynamicResponse("Failed close bhishm", false, nil, 500, nil), err
+	}
+	// Success response
+	return helper.CreateDynamicResponse("Bhisham Delete Successfully", true, nil, 200, nil), nil
+}
+
+func GenerateSlug(input string) string {
+	slug := strings.ToLower(input)
+	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	return slug
 }
